@@ -7,7 +7,9 @@
   <meta name="description" content="Aurelia Dental is a private dental and aesthetic clinic offering precise, unhurried care in a calm studio setting.">
   <link rel="canonical" href="https://example.com/">
   <link rel="icon" href="assets/images/favicon.svg" type="image/svg+xml">
-  <meta name="theme-color" content="#f3efe8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Aurelia Dental">
   <meta property="og:locale" content="en_US">
@@ -52,8 +54,8 @@
       ]
     }
   </script>
+  <script>document.documentElement.classList.add("js");</script>
   <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/responsive.css">
   <script src="assets/js/main.js" defer></script>
 </head>
 <body>
@@ -262,23 +264,23 @@
         <p class="booking__note">Fields marked * are required.</p>
         <p class="booking__field">
           <label for="booking-name">Full name <span aria-hidden="true">*</span></label>
-          <input id="booking-name" name="name" type="text" autocomplete="name" required>
+          <input class="booking__control" id="booking-name" name="name" type="text" autocomplete="name" required>
         </p>
         <p class="booking__field">
           <label for="booking-email">Email <span aria-hidden="true">*</span></label>
-          <input id="booking-email" name="email" type="email" autocomplete="email" required>
+          <input class="booking__control" id="booking-email" name="email" type="email" autocomplete="email" required>
         </p>
         <p class="booking__field">
           <label for="booking-phone">Phone</label>
-          <input id="booking-phone" name="phone" type="tel" autocomplete="tel">
+          <input class="booking__control" id="booking-phone" name="phone" type="tel" autocomplete="tel">
         </p>
         <p class="booking__field">
           <label for="booking-date">Preferred date</label>
-          <input id="booking-date" name="date" type="date">
+          <input class="booking__control" id="booking-date" name="date" type="date">
         </p>
         <p class="booking__field booking__field--full">
           <label for="booking-interest">Area of interest <span aria-hidden="true">*</span></label>
-          <select id="booking-interest" name="interest" required>
+          <select class="booking__control" id="booking-interest" name="interest" required>
             <option value="">Select a service</option>
             <option value="preventive">Preventive care</option>
             <option value="restorative">Restorative work</option>
@@ -290,10 +292,10 @@
         </p>
         <p class="booking__field booking__field--full">
           <label for="booking-note">Anything we should know</label>
-          <textarea id="booking-note" name="note" rows="4"></textarea>
+          <textarea class="booking__control" id="booking-note" name="note" rows="4"></textarea>
         </p>
         <p class="booking__consent">
-          <input id="booking-consent" name="consent" type="checkbox" value="granted" required aria-describedby="booking-privacy">
+          <input class="booking__checkbox" id="booking-consent" name="consent" type="checkbox" value="granted" required aria-describedby="booking-privacy">
           <label for="booking-consent">I consent to Aurelia Dental using the personal and health details in this form only to arrange my consultation. I can withdraw this consent at any time (PDPA / GDPR).</label>
         </p>
         <p class="booking__status" id="booking-status" role="status"></p>
