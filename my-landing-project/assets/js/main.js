@@ -1,10 +1,7 @@
 (function () {
-  var root = document.documentElement;
   var toggle = document.querySelector(".site-nav__toggle");
   var nav = document.getElementById("primary-nav");
-  var desktopQuery = window.matchMedia("(min-width: 48rem)");
-
-  root.classList.add("js");
+  var desktopQuery = window.matchMedia("(min-width: 64rem)");
 
   function setMenuOpen(isOpen) {
     if (!toggle || !nav) {
