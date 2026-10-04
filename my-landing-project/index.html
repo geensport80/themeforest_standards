@@ -69,7 +69,7 @@
     <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
     <nav class="site-nav" id="primary-nav" aria-label="Primary">
       <ul class="site-nav__list">
-        <li><a href="#care">Dental care</a></li>
+        <li><a href="#services">Dental care</a></li>
         <li><a href="#aesthetics">Aesthetics</a></li>
         <li><a href="#approach">Approach</a></li>
         <li><a href="#stories">Stories</a></li>
@@ -101,23 +101,124 @@
       </ul>
     </section>
 
-    <section class="section" id="care" aria-labelledby="care-heading">
+    <section class="section services" id="services" aria-labelledby="services-heading">
       <header class="section__header">
-        <h2 class="section__title" id="care-heading">Dentistry, planned around you.</h2>
+        <p class="services__badge">Treatments</p>
+        <h2 class="section__title" id="services-heading">Dentistry, planned around you.</h2>
         <p class="section__lead">From routine prevention to full reconstruction, every plan starts with time to listen and a pace you can trust.</p>
       </header>
-      <ul class="cards">
-        <li class="card">
-          <h3 class="card__title">Preventive care</h3>
-          <p>Exams, hygiene, and quiet monitoring so small changes are noticed early.</p>
+      <ul class="services__grid">
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3.5 5 6.2v5.1c0 4.2 2.8 7.2 7 8.7 4.2-1.5 7-4.5 7-8.7V6.2L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M9 12.2 11 14l4-4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Preventive care</h3>
+          <p class="service-card__excerpt">Exams, hygiene, and quiet monitoring so small changes are noticed early.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>45 min</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $180</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Preventive care</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
         </li>
-        <li class="card">
-          <h3 class="card__title">Restorative work</h3>
-          <p>Crowns, inlays, and repairs shaped to sit comfortably beside the teeth you already have.</p>
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 4.5h8l1 4.2a5.2 5.2 0 0 1-10 0L8 4.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M9.2 14.8 8 19.5h8l-1.2-4.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Restorative work</h3>
+          <p class="service-card__excerpt">Crowns, inlays, and repairs shaped to sit comfortably beside the teeth you already have.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>90 min</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $640</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Restorative work</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
         </li>
-        <li class="card">
-          <h3 class="card__title">Bite and alignment</h3>
-          <p>Occlusion and alignment options explained clearly, without a push toward treatment.</p>
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 8h14M5 12h14M5 16h14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M8 6.5v3M16 10.5v3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Bite and alignment</h3>
+          <p class="service-card__excerpt">Occlusion and alignment options explained clearly, without a push toward treatment.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>60 min</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $220</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Bite and alignment</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </li>
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4.5 13.6 9H18l-3.6 2.6 1.4 4.4L12 13.6 8.2 16l1.4-4.4L6 9h4.4L12 4.5Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Porcelain veneers</h3>
+          <p class="service-card__excerpt">A measured change in shape and shade, previewed with you before anything is prepared.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>2 visits</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $1,200</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Porcelain veneers</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </li>
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 16.5 16.5 7l2 2L9 18.5H7v-2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M14.2 9.3 16.8 6.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Composite bonding</h3>
+          <p class="service-card__excerpt">Edge repair and small reshaping finished in the studio, with as little tooth reduction as possible.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>60 min</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $350</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Composite bonding</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+        </li>
+        <li class="service-card">
+          <div class="service-card__media">
+            <svg class="service-card__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4.5c2.8 3.2 4.2 5.6 4.2 8.1a4.2 4.2 0 0 1-8.4 0c0-2.5 1.4-4.9 4.2-8.1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="service-card__title">Hygiene visit</h3>
+          <p class="service-card__excerpt">A thorough clean and a clear note on what to watch for before the next review.</p>
+          <dl class="service-card__meta">
+            <div><dt class="screen-reader-text">Duration</dt><dd>50 min</dd></div>
+            <div><dt class="screen-reader-text">Price</dt><dd>From $160</dd></div>
+          </dl>
+          <a class="service-card__link" href="#book">Book this visit<span class="screen-reader-text">: Hygiene visit</span>
+            <svg class="service-card__arrow" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
         </li>
       </ul>
     </section>
@@ -320,7 +421,7 @@
     </address>
     <nav aria-label="Footer">
       <ul class="site-footer__list">
-        <li><a href="#care">Dental care</a></li>
+        <li><a href="#services">Dental care</a></li>
         <li><a href="#aesthetics">Aesthetics</a></li>
         <li><a href="#approach">Approach</a></li>
         <li><a href="#visit">Visit</a></li>

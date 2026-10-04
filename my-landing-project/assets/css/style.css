@@ -28,6 +28,7 @@
   --color-primary-hover: color-mix(in srgb, var(--color-primary) 80%, var(--tone));
   --color-line: color-mix(in srgb, var(--color-text) 12%, transparent);
   --color-glow: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
   --shadow: 0 12px 32px color-mix(in srgb, var(--color-primary) 8%, transparent);
 
   --space-2xs: 0.25rem;
@@ -513,6 +514,122 @@ a:hover {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/* Services */
+
+.services__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+  padding: 0.35rem var(--space-xs);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* auto-fill keeps card width fixed when a buyer lists fewer services than columns. */
+.services__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+  gap: var(--space-lg);
+}
+
+/* The whole card is clickable through .service-card__link::after. */
+.service-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-md);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.service-card:focus-within {
+  --arrow-shift: 0.2rem;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow);
+}
+
+@media (hover: hover) {
+  .service-card:hover {
+    --arrow-shift: 0.2rem;
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow);
+  }
+}
+
+.service-card__media {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  margin-bottom: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+}
+
+.service-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.service-card__title {
+  margin-bottom: var(--space-xs);
+}
+
+.service-card__excerpt {
+  margin-bottom: var(--space-sm);
+  color: var(--color-muted);
+}
+
+/* margin-top: auto pins meta and link to the bottom so they line up across a row. */
+.service-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-sm);
+  margin-top: auto;
+  padding-top: var(--space-sm);
+  font-size: var(--text-small);
+  font-weight: 600;
+}
+
+.service-card__link {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-md);
+  color: var(--color-accent-strong);
+  font-size: var(--text-small);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.service-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+}
+
+.service-card__arrow {
+  width: 1rem;
+  height: 1rem;
+  transform: translateX(var(--arrow-shift, 0));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .service-card__arrow {
+    transition: transform 0.25s ease;
+  }
 }
 
 /* Quote */
