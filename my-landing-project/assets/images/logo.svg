@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Aurelia Dental</title>
+  <rect width="64" height="64" rx="16" fill="#1E4A42"/>
+  <path fill="#F7F3EC" fill-rule="evenodd" d="M32 14.5 16.5 50h7.4l3.3-9.2h9.6L40.1 50h7.4L32 14.5Zm-2.9 20.4 2.9-8.2 2.9 8.2h-5.8Z"/>
+  <path stroke="#C4A574" stroke-width="2" stroke-linecap="round" d="M22 54.5h20"/>
+</svg>

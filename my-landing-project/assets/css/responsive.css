@@ -1,4 +1,24 @@
 @media (min-width: 48rem) {
+  .js .site-nav__toggle {
+    display: none;
+  }
+
+  .js .site-nav,
+  .js .site-nav.is-open {
+    display: block;
+    flex-basis: auto;
+  }
+
+  .js .site-nav__list {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+  }
+
+  .js .site-nav__list a {
+    min-height: 0;
+  }
+
   .hero {
     padding-top: 4.5rem;
   }
@@ -24,6 +44,8 @@
 
   .booking__note,
   .booking__field--full,
+  .booking__consent,
+  .booking__status,
   .booking__submit,
   .booking__privacy {
     grid-column: 1 / -1;

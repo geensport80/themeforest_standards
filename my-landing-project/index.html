@@ -15,8 +15,43 @@
   <meta property="og:description" content="Aurelia Dental is a private dental and aesthetic clinic offering precise, unhurried care in a calm studio setting.">
   <meta property="og:url" content="https://example.com/">
   <meta property="og:image" content="https://example.com/assets/images/og-share.jpg">
-  <meta property="og:image:alt" content="The Aurelia Dental studio, a calm private clinic interior.">
+  <meta property="og:image:alt" content="Aurelia Dental monogram and name on a warm studio background.">
   <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dentist",
+      "name": "Aurelia Dental",
+      "description": "Aurelia Dental is a private dental and aesthetic clinic offering precise, unhurried care in a calm studio setting.",
+      "url": "https://example.com/",
+      "image": "https://example.com/assets/images/og-share.jpg",
+      "telephone": "+1-555-010-1840",
+      "email": "hello@example.com",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Suite 2, 18 Linden Walk"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "https://schema.org/Monday",
+            "https://schema.org/Tuesday",
+            "https://schema.org/Wednesday",
+            "https://schema.org/Thursday"
+          ],
+          "opens": "08:00",
+          "closes": "18:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "https://schema.org/Friday",
+          "opens": "08:00",
+          "closes": "16:00"
+        }
+      ]
+    }
+  </script>
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/responsive.css">
   <script src="assets/js/main.js" defer></script>
@@ -25,8 +60,12 @@
   <a class="skip-link" href="#main">Skip to main content</a>
 
   <header class="site-header">
-    <a class="site-header__brand" href="./" rel="home">Aurelia Dental</a>
-    <nav class="site-nav" aria-label="Primary">
+    <a class="site-header__brand" href="./" rel="home">
+      <img class="site-header__logo" src="assets/images/logo.svg" alt="" width="36" height="36">
+      Aurelia Dental
+    </a>
+    <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+    <nav class="site-nav" id="primary-nav" aria-label="Primary">
       <ul class="site-nav__list">
         <li><a href="#care">Dental care</a></li>
         <li><a href="#aesthetics">Aesthetics</a></li>
@@ -253,8 +292,13 @@
           <label for="booking-note">Anything we should know</label>
           <textarea id="booking-note" name="note" rows="4"></textarea>
         </p>
+        <p class="booking__consent">
+          <input id="booking-consent" name="consent" type="checkbox" value="granted" required aria-describedby="booking-privacy">
+          <label for="booking-consent">I consent to Aurelia Dental using the personal and health details in this form only to arrange my consultation. I can withdraw this consent at any time (PDPA / GDPR).</label>
+        </p>
+        <p class="booking__status" id="booking-status" role="status"></p>
         <button class="button booking__submit" type="submit" aria-describedby="booking-privacy">Request a consultation</button>
-        <p class="booking__privacy" id="booking-privacy">We use these details only to confirm your visit.</p>
+        <p class="booking__privacy" id="booking-privacy">We use these details, including information about your dental or aesthetic care, only to confirm your visit.</p>
       </form>
     </section>
   </main>
