@@ -54,8 +54,13 @@
   --tracking-tight: -0.025em;
   --tracking-body: 0.01em;
 
+  --space-fluid: clamp(var(--space-lg), 1rem + 4vw, var(--space-2xl));
+
   --container: min(72rem, calc(100% - var(--space-lg)));
 }
+
+/* Breakpoints (min-width, px): 768px, 992px, 1200px.
+   992px is mirrored in assets/js/main.js (desktopQuery); change both together. */
 
 /* Set data-theme="light" on <html> to opt out (e.g. from a Customizer toggle). */
 @media (prefers-color-scheme: dark) {
@@ -245,14 +250,14 @@ a:hover {
   color: var(--color-on-primary);
 }
 
-/* Site header */
+/* Site header: stacked menu on small screens; horizontal bar from 992px. */
 
 .site-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-sm) var(--space-md);
+  gap: var(--space-sm);
   width: var(--container);
   margin: 0 auto;
   padding: var(--space-sm) 0;
@@ -260,9 +265,11 @@ a:hover {
 
 .site-header__brand {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
   gap: var(--space-xs);
-  font-size: 1.35rem;
+  min-width: 0;
+  font-size: 1.25rem;
   letter-spacing: -0.02em;
   text-decoration: none;
 }
@@ -273,12 +280,11 @@ a:hover {
   height: 2.25rem;
 }
 
-/* Site navigation: inline row by default; collapses behind a toggle below 1024px when JS runs. */
-
 .site-nav__list {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-md);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
 }
 
 .site-nav__list a {
@@ -292,6 +298,7 @@ a:hover {
   display: none;
   flex: none;
   align-items: center;
+  align-self: center;
   justify-content: center;
   min-height: 2.75rem;
   padding: 0.4rem var(--space-sm);
@@ -308,41 +315,61 @@ a:hover {
   color: var(--color-on-primary);
 }
 
-@media (max-width: 63.99rem) {
-  /* Zero basis: the brand never pushes the toggle onto a new line; its text wraps instead. */
+.js .site-nav__toggle {
+  display: inline-flex;
+}
+
+.js .site-nav {
+  display: none;
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.site-nav.is-open {
+  display: block;
+}
+
+@media (min-width: 992px) {
+  .site-header {
+    flex-wrap: nowrap;
+    gap: var(--space-md);
+    padding-block: var(--space-md);
+  }
+
   .site-header__brand {
-    flex: 1 1 0;
+    flex: 0 1 auto;
+    font-size: 1.35rem;
   }
 
   .js .site-nav__toggle {
-    display: inline-flex;
-  }
-
-  .js .site-nav {
     display: none;
-    flex-basis: 100%;
   }
 
+  .js .site-nav,
   .site-nav.is-open {
-    display: block;
+    display: flex;
+    flex: 1 1 auto;
+    justify-content: flex-end;
   }
 
-  .js .site-nav__list {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2xs);
+  .site-nav__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs) var(--space-md);
   }
 }
 
-/* Hero: stacked under 1024px, two columns from there up. */
+/* Hero: one column on small screens; text beside media from 768px. */
 
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-xl);
+  gap: clamp(var(--space-lg), 0.5rem + 5vw, var(--space-2xl));
   width: var(--container);
   margin: 0 auto;
-  padding: var(--space-xl) 0 var(--space-2xl);
+  padding: var(--space-fluid) 0;
 }
 
 /* --hero-align flips text, cross-axis and row alignment of the intro in one place. */
@@ -352,6 +379,7 @@ a:hover {
   flex-direction: column;
   align-items: var(--hero-align);
   gap: var(--space-md);
+  min-width: 0;
   text-align: var(--hero-align);
 }
 
@@ -386,15 +414,15 @@ a:hover {
   color: var(--color-muted);
 }
 
+/* Grid stretches the buttons to full width on small screens without sizing them. */
 .hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: var(--hero-align);
+  display: grid;
   gap: var(--space-sm);
+  width: 100%;
 }
 
 .hero__media {
+  min-width: 0;
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--color-surface);
@@ -415,13 +443,14 @@ a:hover {
 
 .hero__stat {
   padding: 1.35rem 0;
-  border-top: 1px solid var(--color-line);
   color: var(--color-muted);
   font-size: var(--text-small);
 }
 
-.hero__stat:first-child {
-  border-top: 0;
+/* Divider between stats: top border when stacked, left border in a row. */
+.hero__stat + .hero__stat {
+  border: 0 solid var(--color-line);
+  border-top-width: 1px;
 }
 
 .hero__stat strong {
@@ -433,23 +462,7 @@ a:hover {
   line-height: 1.15;
 }
 
-@media (min-width: 48rem) {
-  .hero__stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .hero__stat {
-    padding: 1.75rem 1.25rem;
-    border-top: 0;
-    border-left: 1px solid var(--color-line);
-  }
-
-  .hero__stat:first-child {
-    border-left: 0;
-  }
-}
-
-@media (min-width: 64rem) {
+@media (min-width: 768px) {
   .hero {
     grid-template-columns: minmax(0, 11fr) minmax(0, 9fr);
     align-items: center;
@@ -459,8 +472,30 @@ a:hover {
     --hero-align: start;
   }
 
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: var(--hero-align);
+  }
+
   .hero__stats {
     grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .hero__stat {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .hero__stat + .hero__stat {
+    border-width: 0 0 0 1px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .hero__heading {
+    max-width: 14ch;
   }
 }
 
@@ -532,11 +567,15 @@ a:hover {
   text-transform: uppercase;
 }
 
-/* auto-fill keeps card width fixed when a buyer lists fewer services than columns. */
+.services {
+  padding-block: var(--space-fluid);
+}
+
+/* One column on phones, up to three as width allows: the 72rem container caps it at three. */
 .services__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
-  gap: var(--space-lg);
+  gap: clamp(var(--space-md), 0.25rem + 4vw, var(--space-xl));
 }
 
 /* The whole card is clickable through .service-card__link::after. */
@@ -629,6 +668,12 @@ a:hover {
 @media (prefers-reduced-motion: no-preference) {
   .service-card__arrow {
     transition: transform 0.25s ease;
+  }
+}
+
+@media (min-width: 992px) {
+  .services .section__header {
+    margin-bottom: var(--space-xl);
   }
 }
 
@@ -736,18 +781,15 @@ a:hover {
   font-size: var(--text-small);
 }
 
-@media (min-width: 48rem) {
+@media (min-width: 768px) {
   .booking {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
   }
 
-  .booking__note,
-  .booking__field--full,
-  .booking__consent,
-  .booking__status,
-  .booking__submit,
-  .booking__privacy {
+  /* Only plain fields sit side by side; anything else added to the form spans both columns. */
+  .booking > :not(.booking__field),
+  .booking__field--full {
     grid-column: 1 / -1;
   }
 }
@@ -779,7 +821,7 @@ a:hover {
   margin-bottom: 1.25rem;
 }
 
-@media (min-width: 64rem) {
+@media (min-width: 992px) {
   .site-footer {
     display: grid;
     grid-template-columns: 1.4fr 1fr;
