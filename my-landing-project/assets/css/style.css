@@ -22,10 +22,13 @@
   --color-surface: #ffffff;
   --color-text: #1e293b;
   --color-muted: #64748b;
+  --color-danger: #b42318;        /* error text: 6.3:1 on --color-bg */
   --tone: #000000; /* mixed in for hover states; white in dark mode */
 
   --color-primary-hover: color-mix(in srgb, var(--color-primary) 80%, var(--tone));
   --color-line: color-mix(in srgb, var(--color-text) 12%, transparent);
+  /* Form field edges need 3:1 (WCAG 1.4.11); --color-line is decorative only. */
+  --color-field-border: color-mix(in srgb, var(--color-text) 55%, var(--color-surface));
   --color-glow: color-mix(in srgb, var(--color-accent) 14%, transparent);
   --color-accent-soft: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
   --border: 1px solid var(--color-line);
@@ -82,6 +85,7 @@
     --color-surface: #1e293b;
     --color-text: #e2e8f0;
     --color-muted: #94a3b8;
+    --color-danger: #fda29b;
     --tone: #ffffff;
   }
 }
@@ -616,7 +620,7 @@ a:hover {
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-/* Hover is kept separate and guarded: the links jump in-page to #book,
+/* Hover is kept separate and guarded: the links jump in-page to #contact,
    so an unguarded :hover would stay stuck on touch screens. */
 .service-card:focus-within {
   --arrow-shift: 0.2rem;
@@ -742,85 +746,225 @@ a:hover {
   color: var(--color-text);
 }
 
-/* ================= 14. Booking form ================= */
+/* ================= 14. Contact and booking ================= */
 
-/* Rows are spaced with margins, not row-gap, so the empty status line takes no space. */
-.booking {
+/* One column until 992px, then studio details beside the form.
+   The section header uses the shared .section__* classes. */
+.contact-layout {
   display: grid;
-  gap: 0 var(--space-md);
-  max-width: 40rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
 }
 
-.booking__note,
-.booking__field,
-.booking__consent {
-  margin-bottom: var(--space-sm);
+.contact-info__intro {
+  margin-bottom: var(--space-md);
 }
 
-.booking__field label {
-  display: block;
-  font-size: var(--text-small);
+.contact-info__list {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.contact-info__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.contact-info__icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15em;
+  color: var(--color-accent-strong);
+}
+
+.contact-info__label {
+  color: var(--color-text);
   font-weight: var(--weight-semibold);
 }
 
-.booking__control {
-  display: block;
-  width: 100%;
-  min-height: var(--tap-target);
-  margin-top: 0.35rem;
-  padding: 0.7rem 0.8rem;
+.contact-info__map {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  padding: var(--space-md);
   border: var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-accent-soft);
+  background-image:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 1.5rem 1.5rem;
+  text-align: center;
 }
 
-.booking__consent {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-xs-sm);
+.contact-info__pin {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-inline: auto;
+  margin-bottom: var(--space-xs);
+  color: var(--color-primary);
 }
 
-.booking__checkbox {
-  flex: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  margin: 0.2rem 0 0;
-  accent-color: var(--color-accent-strong);
+/* Field order inside .contact-form__field: label, hint, control, error.
+   The hint sits above the control so it stays in view while typing and under zoom. */
+.contact-form {
+  display: grid;
+  gap: var(--space-sm);
+  min-width: 0;
 }
 
-.booking__consent label {
-  font-size: var(--text-small);
-  line-height: 1.5;
-}
-
-.booking__status:not(:empty) {
-  margin-bottom: var(--space-sm);
-  padding: 0.85rem var(--space-sm);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-}
-
-.booking__submit {
-  justify-self: start;
-  margin-top: var(--space-xs);
-}
-
-.booking__privacy {
-  margin-top: 0.85rem;
+.contact-form__note {
   color: var(--color-muted);
   font-size: var(--text-small);
 }
 
-@media (min-width: 768px) {
-  .booking {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-width: none;
+.contact-form__field label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+}
+
+.contact-form__hint {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+/* font-size stays at --text-body (16px or more), so iOS Safari does not zoom on focus. */
+.contact-form__control {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--tap-target);
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-field-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+textarea.contact-form__control {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+/* iOS centres the chosen date; align it with the other fields. */
+.contact-form__control::-webkit-date-and-time-value {
+  text-align: start;
+}
+
+.contact-form__control:focus-visible {
+  border-color: var(--color-accent-strong);
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+/* Colour backs up the written error message; it is never the only signal. */
+.contact-form__control[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.contact-form__control--select {
+  padding-right: 2.5rem;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text) 50%),
+    linear-gradient(135deg, var(--color-text) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - 0.05rem),
+    calc(100% - 0.85rem) calc(50% - 0.05rem);
+  background-size: 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+}
+
+/* Empty until main.js writes a message, so it takes no space. */
+.contact-form__error {
+  display: block;
+  color: var(--color-danger);
+  font-size: var(--text-small);
+  font-weight: var(--weight-semibold);
+}
+
+.contact-form__error:not(:empty) {
+  margin-top: 0.35rem;
+}
+
+.contact-form__consent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--space-xs-sm);
+}
+
+.contact-form__consent .contact-form__error {
+  grid-column: 2;
+}
+
+/* 24px meets the WCAG 2.2 target-size minimum (2.5.8). */
+.contact-form__checkbox {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  accent-color: var(--color-accent-strong);
+}
+
+.contact-form__consent label {
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+/* Spam trap: out of view and out of the accessibility tree; people never reach it. */
+.contact-form__trap {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.contact-form__status:not(:empty) {
+  padding: 0.85rem var(--space-sm);
+  border-inline-start: 3px solid var(--color-accent-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.contact-form__status[data-state="error"] {
+  border-inline-start-color: var(--color-danger);
+}
+
+.contact-form__submit {
+  justify-self: stretch;
+  gap: var(--space-xs);
+}
+
+.contact-form__icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.contact-form__privacy {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+@media (min-width: 992px) {
+  .contact-layout {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    align-items: start;
+    gap: var(--space-xl);
   }
 
-  /* Only plain fields sit side by side; anything else added to the form spans both columns. */
-  .booking > :not(.booking__field),
-  .booking__field--full {
-    grid-column: 1 / -1;
+  .contact-form__submit {
+    justify-self: start;
   }
 }
 
