@@ -1,7 +1,8 @@
 (function () {
   var toggle = document.querySelector(".site-nav__toggle");
   var nav = document.getElementById("primary-nav");
-  var desktopQuery = window.matchMedia("(min-width: 64rem)");
+  // Keep in sync with the 992px breakpoint in assets/css/style.css.
+  var desktopQuery = window.matchMedia("(min-width: 992px)");
 
   function setMenuOpen(isOpen) {
     if (!toggle || !nav) {
