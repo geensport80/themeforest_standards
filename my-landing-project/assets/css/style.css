@@ -908,3 +908,83 @@ a:hover {
   padding-left: var(--space-sm);
   border-left: 3px solid var(--color-accent);
 }
+
+/* ================= 17. Utilities =================
+   Single-purpose overrides, kept last so nothing above can follow them.
+   !important is allowed here only: a utility must beat any component selector,
+   e.g. .d-none still hides .js .site-nav__toggle (0,2,0).
+   Names and steps follow Bootstrap 5: 3 = 1rem, 4 = 1.5rem, 5 = 3rem. */
+
+.m-0 {
+  margin: 0 !important;
+}
+
+.my-auto {
+  margin-block: auto !important;
+}
+
+.mb-3 {
+  margin-bottom: var(--space-sm) !important;
+}
+
+.mb-4 {
+  margin-bottom: var(--space-md) !important;
+}
+
+.mb-5 {
+  margin-bottom: var(--space-xl) !important;
+}
+
+.p-0 {
+  padding: 0 !important;
+}
+
+.px-3 {
+  padding-inline: var(--space-sm) !important;
+}
+
+.py-4 {
+  padding-block: var(--space-md) !important;
+}
+
+.py-5 {
+  padding-block: var(--space-xl) !important;
+}
+
+.d-none {
+  display: none !important;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.flex-column {
+  flex-direction: column !important;
+}
+
+.align-items-center {
+  align-items: center !important;
+}
+
+.justify-content-center {
+  justify-content: center !important;
+}
+
+.justify-content-between {
+  justify-content: space-between !important;
+}
+
+@media (min-width: 768px) {
+  .d-md-none {
+    display: none !important;
+  }
+
+  .d-md-flex {
+    display: flex !important;
+  }
+
+  .flex-md-row {
+    flex-direction: row !important;
+  }
+}
