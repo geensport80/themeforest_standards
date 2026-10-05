@@ -92,7 +92,14 @@
         </p>
       </header>
       <figure class="hero__media">
-        <img src="assets/images/og-share.jpg" alt="Aurelia Dental monogram and name on a warm studio background." width="1200" height="630">
+        <!-- LCP image: fetched first, never lazy-loaded. sizes mirrors the hero grid in style.css (5.4). -->
+        <img
+          src="assets/images/hero-800.jpg"
+          srcset="assets/images/hero-640.jpg 640w, assets/images/hero-800.jpg 800w, assets/images/og-share.jpg 1200w"
+          sizes="(min-width: 1200px) 490px, (min-width: 768px) 41vw, calc(100vw - 2rem)"
+          alt="Aurelia Dental monogram and name on a warm studio background."
+          width="1200" height="630"
+          fetchpriority="high">
       </figure>
       <ul class="hero__stats">
         <li class="hero__stat"><strong>18 years</strong> of private practice</li>

@@ -1,0 +1,195 @@
+/*
+ * Aurelia Dental — grid and flex utilities
+ *
+ * Load after style.css. Spacing comes from that file's :root tokens.
+ * Breakpoint and container widths are defined here and reused below.
+ * Media conditions repeat those widths in px: var() is not valid inside @media.
+ *
+ * Spacing steps follow the Bootstrap 5 scale, mapped onto the 8px tokens:
+ *   0 = 0, 3 = --space-sm (1rem), 4 = --space-md (1.5rem), 5 = --space-xl (3rem).
+ */
+
+/* ================= 01. Grid tokens ================= */
+
+:root {
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+  --breakpoint-xxl: 1400px;
+
+  --container-sm: 540px;
+  --container-md: 720px;
+  --container-lg: 960px;
+  --container-xl: 1140px;
+  --container-xxl: 1320px;
+
+  --grid-gutter: var(--space-md);
+}
+
+/* ================= 02. Container ================= */
+
+.container {
+  box-sizing: border-box;
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: calc(var(--grid-gutter) / 2);
+}
+
+@media (min-width: 576px) {
+  .container {
+    max-width: var(--container-sm);
+  }
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: var(--container-md);
+  }
+}
+
+@media (min-width: 992px) {
+  .container {
+    max-width: var(--container-lg);
+  }
+}
+
+@media (min-width: 1200px) {
+  .container {
+    max-width: var(--container-xl);
+  }
+}
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: var(--container-xxl);
+  }
+}
+
+/* ================= 03. Row and columns ================= */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline: calc(var(--grid-gutter) / -2);
+}
+
+.col,
+.col-12,
+.col-md-6,
+.col-lg-4,
+.col-lg-3 {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding-inline: calc(var(--grid-gutter) / 2);
+}
+
+/* Equal columns: grow from a zero basis so the row shares leftover space. */
+.col {
+  flex: 1 0 0%;
+}
+
+.col-12 {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .col-md-6 {
+    flex: 0 0 auto;
+    width: 50%;
+  }
+}
+
+@media (min-width: 992px) {
+  .col-lg-3 {
+    flex: 0 0 auto;
+    width: 25%;
+  }
+
+  .col-lg-4 {
+    flex: 0 0 auto;
+    width: 33.333333%;
+  }
+}
+
+/* ================= 04. Spacing ================= */
+
+.m-0 {
+  margin: 0;
+}
+
+.my-auto {
+  margin-block: auto;
+}
+
+.mb-3 {
+  margin-bottom: var(--space-sm);
+}
+
+.mb-4 {
+  margin-bottom: var(--space-md);
+}
+
+.mb-5 {
+  margin-bottom: var(--space-xl);
+}
+
+.p-0 {
+  padding: 0;
+}
+
+.px-3 {
+  padding-inline: var(--space-sm);
+}
+
+.py-4 {
+  padding-block: var(--space-md);
+}
+
+.py-5 {
+  padding-block: var(--space-xl);
+}
+
+/* ================= 05. Flex and display ================= */
+
+.d-flex {
+  display: flex;
+}
+
+.d-none {
+  display: none;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+@media (min-width: 768px) {
+  .d-md-none {
+    display: none;
+  }
+
+  .d-md-flex {
+    display: flex;
+  }
+
+  .flex-md-row {
+    flex-direction: row;
+  }
+}
