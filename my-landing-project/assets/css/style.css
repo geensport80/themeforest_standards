@@ -39,6 +39,7 @@
     0 4px 10px color-mix(in srgb, var(--color-primary) 5%, transparent),
     0 18px 40px color-mix(in srgb, var(--color-primary) 14%, transparent);
   --shadow-pressed: 0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent);
+  /* If you add glass UI, set -webkit-backdrop-filter to the same value as backdrop-filter. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 0.2s;
   --duration-motion: 0.25s;
@@ -68,6 +69,8 @@
   --text-xs: 0.75rem;
   --text-small: clamp(0.875rem, 0.84rem + 0.15vw, 0.9375rem);
   --text-body: clamp(1rem, 0.96rem + 0.2vw, 1.125rem);
+  /* Floors field text at 16px so iOS Safari does not zoom on focus (see reset + rule 17). */
+  --text-form: max(16px, 1rem);
   --text-h1: clamp(2rem, 1.25rem + 3vw, 3.25rem);
   --text-h2: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem);
   --text-h3: clamp(1.25rem, 1rem + 0.8vw, 1.5rem);
@@ -158,6 +161,15 @@ textarea {
   resize: vertical;
 }
 
+/* Checkbox, radio, range, file, and color keep native OS chrome; everything else is restyled. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"]),
+select,
+textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: var(--text-form);
+}
+
 /* ================= 03. Base ================= */
 
 body {
@@ -171,6 +183,8 @@ body {
   font-size: var(--text-body);
   line-height: var(--leading-body);
   letter-spacing: var(--tracking-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-wrap: break-word;
 }
 
@@ -185,8 +199,19 @@ h6 {
   font-weight: var(--weight-medium);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-tight);
-  text-wrap: balance;
+  -webkit-hyphens: auto; /* Safari before 17 only understands the prefixed form */
   hyphens: auto;
+}
+
+@supports (text-wrap: balance) {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
 }
 
 h1 {
@@ -938,7 +963,7 @@ a {
   font-size: var(--text-small);
 }
 
-/* font-size stays at --text-body (16px or more), so iOS Safari does not zoom on focus. */
+/* Restates --text-form so a child theme cannot shrink fields below 16px inside this block. */
 .contact-form__control {
   display: block;
   width: 100%;
@@ -950,6 +975,7 @@ a {
   border-radius: var(--radius-sm);
   background-color: var(--color-surface);
   color: var(--color-text);
+  font-size: var(--text-form);
 }
 
 textarea.contact-form__control {
@@ -975,7 +1001,6 @@ textarea.contact-form__control {
 
 .contact-form__control--select {
   padding-right: 2.5rem;
-  appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--color-text) 50%),
     linear-gradient(135deg, var(--color-text) 50%, transparent 50%);
