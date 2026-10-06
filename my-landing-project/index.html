@@ -66,9 +66,9 @@
       <img class="site-header__logo" src="assets/images/logo.svg" alt="" width="36" height="36" decoding="async">
       Aurelia Dental
     </a>
-    <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+    <button class="site-nav__toggle" type="button" data-action="toggle-nav" data-label-open="Menu" data-label-close="Close" aria-expanded="false" aria-controls="primary-nav">Menu</button>
     <nav class="site-nav" id="primary-nav" aria-label="Primary">
-      <ul class="site-nav__list">
+      <ul class="site-nav__list" data-action="close-nav">
         <li><a href="#services">Dental care</a></li>
         <li><a href="#aesthetics">Aesthetics</a></li>
         <li><a href="#approach">Approach</a></li>

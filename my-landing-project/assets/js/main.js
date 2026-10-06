@@ -4,124 +4,338 @@
  * Vanilla ES6+ only. No jQuery, no build step, no third-party libraries.
  * User-facing copy stays in the markup (data-* attributes) so it can be
  * translated without touching this file (see .cursorrules rule 21).
+ *
+ * Lifecycle: every module has init() and destroy(). init() first aborts the
+ * module's previous AbortController, so calling it again (after an Elementor
+ * re-render or an AJAX page swap) never stacks listeners or keeps detached
+ * nodes alive. Modules look their elements up on each init() and keep them in
+ * closures only, never on the long-lived App object.
  */
 (function () {
   "use strict";
 
+  /* ------------------------------------------------------------------ */
+  /*  Safe DOM helpers                                                    */
+  /* ------------------------------------------------------------------ */
+
   /**
-   * Central application controller. Boots feature modules once the DOM is ready.
+   * querySelector wrapper that returns null instead of throwing, whether the node is
+   * missing or the selector is invalid. Use byId() for ids: they are not CSS.
+   * @param {string} selector
+   * @param {ParentNode|null} [parent=document]
+   * @returns {Element|null}
+   */
+  const select = (selector, parent = document) => {
+    try {
+      return (parent || document).querySelector(selector);
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * querySelectorAll wrapper that always returns a real array (empty when none or invalid).
+   * @param {string} selector
+   * @param {ParentNode|null} [parent=document]
+   * @returns {Element[]}
+   */
+  const selectAll = (selector, parent = document) => {
+    try {
+      return [...(parent || document).querySelectorAll(selector)];
+    } catch {
+      return [];
+    }
+  };
+
+  /**
+   * Element by id. Ids such as "1-step" or "a.b" are valid HTML but not valid (or not
+   * literal) CSS selectors, so never pass "#" + id to querySelector.
+   * @param {string|null} id
+   * @returns {HTMLElement|null}
+   */
+  const byId = (id) => (id ? document.getElementById(id) : null);
+
+  /**
+   * Element named by an in-page link such as "#pricing", or null.
+   * @param {string|null} hash
+   * @returns {HTMLElement|null}
+   */
+  const targetFromHash = (hash) => {
+    if (!hash || hash.length < 2 || hash.charAt(0) !== "#") {
+      return null;
+    }
+
+    try {
+      return byId(decodeURIComponent(hash.slice(1)));
+    } catch {
+      return null; // malformed %-escape
+    }
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Lifecycle helpers                                                   */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Abort a module's previous listeners and hand out a fresh signal for this init().
+   * @param {{controller: AbortController|null}} module
+   * @returns {AbortSignal}
+   */
+  const renewSignal = (module) => {
+    if (module.controller) {
+      module.controller.abort();
+    }
+
+    module.controller = new AbortController();
+    return module.controller.signal;
+  };
+
+  /**
+   * Remove every listener a module added, via its AbortController.
+   * @param {{controller: AbortController|null}} module
+   * @returns {void}
+   */
+  const release = (module) => {
+    if (module.controller) {
+      module.controller.abort();
+      module.controller = null;
+    }
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Application controller                                              */
+  /* ------------------------------------------------------------------ */
+
+  /** Boot order. Each entry names an App module with init() and destroy(). */
+  const MODULES = ["events", "navigation", "stickyHeader", "smoothScroll", "forms"];
+
+  /**
+   * Central application controller.
    * @namespace App
    */
   const App = {
-    /**
-     * Initialise every feature module in a single, ordered pass.
-     * @returns {void}
-     */
-    init: () => {
-      App.navigation.init();
-      App.smoothScroll.init();
-      App.forms.init();
+    /** Shared media queries; read .matches at the moment of use. */
+    config: {
+      /** Keep in sync with the 992px breakpoint in assets/css/style.css. */
+      desktopQuery: window.matchMedia("(min-width: 992px)"),
+      reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)"),
     },
 
     /**
-     * Mobile menu toggle, Escape / desktop close, and sticky header scrolled state.
-     * Keep DESKTOP_MQ in sync with the 992px breakpoint in assets/css/style.css.
-     * @namespace App.navigation
+     * Start (or restart) every module. Safe to call more than once.
+     * One module failing is logged and never stops the others.
+     * @returns {void}
      */
-    navigation: {
-      /** @type {string} */
-      DESKTOP_MQ: "(min-width: 992px)",
+    init: () => {
+      MODULES.forEach((name) => {
+        try {
+          App[name].init();
+        } catch (error) {
+          console.error(`[Aurelia Dental] ${name} did not start.`, error);
+        }
+      });
+    },
+
+    /**
+     * Remove every listener added by every module.
+     * @returns {void}
+     */
+    destroy: () => {
+      MODULES.forEach((name) => App[name].destroy());
+    },
+
+    /**
+     * Document-level click delegation for [data-action] triggers.
+     * Modules register handlers with App.events.on(action, handler, signal)
+     * instead of attaching a listener to every button.
+     * @namespace App.events
+     */
+    events: {
+      /** @type {AbortController|null} */
+      controller: null,
+
+      /** @type {Map<string, Set<function(MouseEvent, Element): void>>} */
+      handlers: new Map(),
 
       /**
-       * Bind the header toggle, media-query cleanup, and scroll stuck state.
+       * Attach the single delegated click listener.
        * @returns {void}
        */
       init: () => {
-        App.navigation.bindMenu();
-        App.navigation.bindStickyHeader();
+        const signal = renewSignal(App.events);
+        document.addEventListener("click", App.events.handleClick, { signal });
+      },
+
+      /** @returns {void} */
+      destroy: () => {
+        release(App.events);
       },
 
       /**
-       * Open / close the primary nav; close on link click, Escape, or desktop width.
+       * Register a handler for a data-action value. Several handlers may share an action.
+       * Passing the module's signal removes the handler when that module is destroyed.
+       * @param {string} action
+       * @param {function(MouseEvent, Element): void} handler
+       * @param {AbortSignal} [signal]
+       * @returns {function(): void} Removes this handler.
+       */
+      on: (action, handler, signal) => {
+        if (!action || typeof handler !== "function") {
+          return () => {};
+        }
+
+        if (!App.events.handlers.has(action)) {
+          App.events.handlers.set(action, new Set());
+        }
+
+        const handlers = App.events.handlers.get(action);
+        const off = () => handlers.delete(handler);
+
+        handlers.add(handler);
+
+        if (signal) {
+          signal.addEventListener("abort", off, { once: true });
+        }
+
+        return off;
+      },
+
+      /**
+       * Route a click to its data-action handlers, then to in-page link handling.
+       * Modified and non-primary clicks (new tab, new window, download) are left to
+       * the browser untouched.
+       * @param {MouseEvent} event
        * @returns {void}
        */
-      bindMenu: () => {
-        const toggle = document.querySelector(".site-nav__toggle");
-        const nav = document.getElementById("primary-nav");
-        const desktopQuery = window.matchMedia(App.navigation.DESKTOP_MQ);
+      handleClick: (event) => {
+        const isPlainClick =
+          event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+
+        if (event.defaultPrevented || !isPlainClick || !(event.target instanceof Element)) {
+          return;
+        }
+
+        const trigger = event.target.closest("[data-action]");
+
+        if (trigger) {
+          const handlers = App.events.handlers.get(trigger.getAttribute("data-action"));
+
+          if (handlers) {
+            handlers.forEach((handler) => handler(event, trigger));
+          }
+        }
+
+        App.smoothScroll.handleClick(event);
+      },
+    },
+
+    /**
+     * Mobile menu: toggle, close on link, Escape and desktop width.
+     * Labels come from data-label-open / data-label-close on the toggle.
+     * @namespace App.navigation
+     */
+    navigation: {
+      /** @type {AbortController|null} */
+      controller: null,
+
+      /** @returns {void} */
+      init: () => {
+        const signal = renewSignal(App.navigation);
+        const toggle = select(".site-nav__toggle");
+        const nav = toggle ? byId(toggle.getAttribute("aria-controls")) : null;
 
         if (!toggle || !nav) {
           return;
         }
 
-        /**
-         * Sync the toggle label, aria-expanded, and open class.
-         * @param {boolean} isOpen
-         * @returns {void}
-         */
-        const setMenuOpen = (isOpen) => {
-          toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-          toggle.textContent = isOpen ? "Close" : "Menu";
-          nav.classList.toggle("is-open", isOpen);
-        };
+        const header = toggle.closest(".site-header");
+        const labelOpen = toggle.getAttribute("data-label-open") || toggle.textContent.trim();
+        const labelClose = toggle.getAttribute("data-label-close") || labelOpen;
 
-        toggle.addEventListener("click", () => {
-          const isOpen = toggle.getAttribute("aria-expanded") === "true";
-          setMenuOpen(!isOpen);
-        });
-
-        nav.addEventListener("click", (event) => {
-          if (event.target.closest("a")) {
-            setMenuOpen(false);
-          }
-        });
-
-        document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
-            setMenuOpen(false);
-            toggle.focus();
-          }
-        });
+        const isOpen = () => toggle.getAttribute("aria-expanded") === "true";
 
         /**
-         * Collapse the drawer when the layout switches to the horizontal bar.
-         * @param {MediaQueryListEvent|MediaQueryList} event
+         * Sync aria-expanded, the visible label, and the open classes.
+         * @param {boolean} open
          * @returns {void}
          */
-        const closeOnDesktop = (event) => {
-          if (event.matches) {
-            setMenuOpen(false);
+        const setOpen = (open) => {
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.textContent = open ? labelClose : labelOpen;
+          nav.classList.toggle("is-open", open);
+
+          if (header) {
+            header.classList.toggle("site-header--menu-open", open);
           }
         };
 
-        if (desktopQuery.addEventListener) {
-          desktopQuery.addEventListener("change", closeOnDesktop);
-        } else if (desktopQuery.addListener) {
-          // Safari < 14
-          desktopQuery.addListener(closeOnDesktop);
-        }
+        App.events.on("toggle-nav", () => setOpen(!isOpen()), signal);
+
+        App.events.on(
+          "close-nav",
+          (event) => {
+            if (event.target.closest("a")) {
+              setOpen(false);
+            }
+          },
+          signal
+        );
+
+        document.addEventListener(
+          "keydown",
+          (event) => {
+            if (event.key === "Escape" && isOpen()) {
+              setOpen(false);
+              toggle.focus();
+            }
+          },
+          { signal }
+        );
+
+        App.config.desktopQuery.addEventListener(
+          "change",
+          (event) => {
+            if (event.matches) {
+              setOpen(false);
+            }
+          },
+          { signal }
+        );
+
+        // A restart keeps the current open state but brings label and classes back in line.
+        setOpen(isOpen());
       },
 
-      /**
-       * Toggle site-header--stuck after a small scroll so CSS can elevate the bar.
-       * @returns {void}
-       */
-      bindStickyHeader: () => {
-        const header = document.querySelector(".site-header");
+      /** @returns {void} */
+      destroy: () => {
+        release(App.navigation);
+      },
+    },
+
+    /**
+     * Adds site-header--stuck once the page scrolls, so CSS can elevate the bar.
+     * @namespace App.stickyHeader
+     */
+    stickyHeader: {
+      /** @type {AbortController|null} */
+      controller: null,
+
+      /** Pixels of scroll before the bar counts as stuck. */
+      STUCK_AFTER: 8,
+
+      /** @returns {void} */
+      init: () => {
+        const signal = renewSignal(App.stickyHeader);
+        const header = select(".site-header");
 
         if (!header) {
           return;
         }
 
-        const STUCK_AFTER = 8;
         let ticking = false;
 
-        /**
-         * Apply or remove the stuck modifier from the current scroll position.
-         * @returns {void}
-         */
-        const updateStuckState = () => {
-          header.classList.toggle("site-header--stuck", window.scrollY > STUCK_AFTER);
+        const update = () => {
+          header.classList.toggle("site-header--stuck", window.scrollY > App.stickyHeader.STUCK_AFTER);
           ticking = false;
         };
 
@@ -129,69 +343,79 @@
           "scroll",
           () => {
             if (!ticking) {
-              window.requestAnimationFrame(updateStuckState);
               ticking = true;
+              window.requestAnimationFrame(update);
             }
           },
-          { passive: true }
+          { passive: true, signal }
         );
 
-        updateStuckState();
+        update();
+      },
+
+      /** @returns {void} */
+      destroy: () => {
+        release(App.stickyHeader);
       },
     },
 
     /**
-     * In-page hash links: smooth scroll when motion is allowed, with focus moved
-     * to the target so keyboard and screen-reader users land in the right place.
+     * In-page links: smooth scroll when motion is allowed, then move focus to the
+     * target so keyboard and screen-reader users continue from there. The sticky
+     * header offset comes from scroll-padding-top in style.css.
+     * Called from App.events.handleClick, so there is one click path for the page.
      * @namespace App.smoothScroll
      */
     smoothScroll: {
+      /** @type {AbortController|null} */
+      controller: null,
+
       /**
-       * Intercept same-page #anchors (skip bare "#" and non-existent targets).
+       * Only creates the signal that scopes the temporary blur listeners below.
        * @returns {void}
        */
       init: () => {
-        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        renewSignal(App.smoothScroll);
+      },
 
-        document.addEventListener("click", (event) => {
-          const link = event.target.closest('a[href^="#"]');
+      /** @returns {void} */
+      destroy: () => {
+        release(App.smoothScroll);
+      },
 
-          if (!link) {
-            return;
-          }
+      /**
+       * @param {MouseEvent} event
+       * @returns {void}
+       */
+      handleClick: (event) => {
+        const { controller } = App.smoothScroll;
+        const link = event.target.closest('a[href^="#"]');
+        const hash = link ? link.getAttribute("href") : null;
+        const destination = targetFromHash(hash);
 
-          const hash = link.getAttribute("href");
+        if (!controller || !destination) {
+          return;
+        }
 
-          if (!hash || hash === "#") {
-            return;
-          }
+        event.preventDefault();
 
-          const target = document.getElementById(hash.slice(1));
-
-          if (!target) {
-            return;
-          }
-
-          event.preventDefault();
-
-          target.scrollIntoView({
-            behavior: reduceMotion.matches ? "auto" : "smooth",
-            block: "start",
-          });
-
-          // Make non-interactive landmarks focusable for this jump, then restore.
-          if (!target.hasAttribute("tabindex")) {
-            target.setAttribute("tabindex", "-1");
-          }
-
-          target.focus({ preventScroll: true });
-
-          if (history.pushState) {
-            history.pushState(null, "", hash);
-          } else {
-            window.location.hash = hash;
-          }
+        destination.scrollIntoView({
+          behavior: App.config.reduceMotion.matches ? "auto" : "smooth",
+          block: "start",
         });
+
+        // Sections are not focusable. Make this one focusable for the jump only, and
+        // remove that again on blur so it never becomes a stray tab or click target.
+        if (!destination.hasAttribute("tabindex")) {
+          destination.setAttribute("tabindex", "-1");
+          destination.addEventListener("blur", () => destination.removeAttribute("tabindex"), {
+            once: true,
+            signal: controller.signal,
+          });
+        }
+
+        destination.focus({ preventScroll: true });
+        history.pushState(null, "", hash);
       },
     },
 
@@ -201,21 +425,22 @@
      * @namespace App.forms
      */
     forms: {
-      /**
-       * Attach validation, honeypot handling, and demo submit for .contact-form.
-       * @returns {void}
-       */
+      /** @type {AbortController|null} */
+      controller: null,
+
+      /** @returns {void} */
       init: () => {
-        const form = document.querySelector(".contact-form");
-        const status = document.getElementById("contact-status");
+        const signal = renewSignal(App.forms);
+        const form = select(".contact-form");
+        const status = byId("contact-status");
 
         if (!form || !status) {
           return;
         }
 
-        const fields = form.querySelectorAll("[data-error-required], [data-error-format]");
-        const trap = form.querySelector('[name="website"]');
-        const dateField = form.querySelector('input[type="date"]');
+        const fields = selectAll("[data-error-required], [data-error-format]", form);
+        const trap = select('[name="website"]', form);
+        const dateField = select('input[type="date"]', form);
 
         // Past dates cannot be booked. Use the local calendar day, not UTC.
         if (dateField) {
@@ -236,12 +461,12 @@
         };
 
         /**
-         * Validate one control and sync its linked *-error element + aria-invalid.
+         * Validate one control and sync its linked *-error element and aria-invalid.
          * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} field
          * @returns {boolean} True when the field is valid.
          */
         const validateField = (field) => {
-          const error = document.getElementById(field.id + "-error");
+          const error = byId(field.id ? field.id + "-error" : null);
           let message = "";
 
           if (!field.validity.valid) {
@@ -264,60 +489,79 @@
         };
 
         /**
-         * Re-check only fields already flagged so errors clear as they are fixed,
-         * but never appear mid-typing on a pristine field.
+         * Re-check only fields already flagged, so errors clear as they are fixed but
+         * never appear mid-typing on a pristine field.
          * @param {Event} event
          * @returns {void}
          */
         const recheck = (event) => {
           const field = event.target;
 
-          if (field.getAttribute && field.getAttribute("aria-invalid") === "true") {
+          if (field instanceof Element && field.getAttribute("aria-invalid") === "true") {
             validateField(field);
           }
         };
 
-        form.addEventListener("input", recheck);
-        form.addEventListener("change", recheck);
+        form.addEventListener("input", recheck, { signal });
+        form.addEventListener("change", recheck, { signal });
 
-        form.addEventListener("submit", (event) => {
-          let firstInvalid = null;
-
-          // Bots fill every field; people never see this one. Fake success, send nothing.
-          if (trap && trap.value) {
-            event.preventDefault();
-            setStatus(form.getAttribute("data-msg-success"), "success");
-            form.reset();
-            return;
-          }
-
-          fields.forEach((field) => {
-            if (!validateField(field) && !firstInvalid) {
-              firstInvalid = field;
+        form.addEventListener(
+          "submit",
+          (event) => {
+            // Bots fill every field; people never see this one. Fake success, send nothing.
+            if (trap && trap.value) {
+              event.preventDefault();
+              setStatus(form.getAttribute("data-msg-success"), "success");
+              form.reset();
+              return;
             }
-          });
 
-          if (firstInvalid) {
-            event.preventDefault();
-            setStatus(form.getAttribute("data-msg-invalid"), "error");
-            firstInvalid.focus();
-            return;
-          }
+            // Validate every field so all errors show, but remember only the first.
+            let firstInvalid = null;
 
-          // Demo page only: once action points to a real handler, submit normally.
-          if (form.getAttribute("action") === "#") {
-            event.preventDefault();
-            setStatus(form.getAttribute("data-msg-success"), "success");
-            form.reset();
-          }
-        });
+            fields.forEach((field) => {
+              if (!validateField(field) && !firstInvalid) {
+                firstInvalid = field;
+              }
+            });
+
+            if (firstInvalid) {
+              event.preventDefault();
+              setStatus(form.getAttribute("data-msg-invalid"), "error");
+              firstInvalid.focus();
+              return;
+            }
+
+            // Demo page only: once action points to a real handler, submit normally.
+            if (form.getAttribute("action") === "#") {
+              event.preventDefault();
+              setStatus(form.getAttribute("data-msg-success"), "success");
+              form.reset();
+            }
+          },
+          { signal }
+        );
+      },
+
+      /** @returns {void} */
+      destroy: () => {
+        release(App.forms);
       },
     },
   };
 
-  // defer scripts often run after DOMContentLoaded; still boot either way.
+  /**
+   * The one deliberate global: lets page builders restart the scripts after they
+   * re-render markup, e.g. elementorFrontend.hooks.addAction("frontend/element_ready/global",
+   * () => AureliaDental.init()). Frozen so other scripts cannot replace its methods.
+   */
+  window.AureliaDental = Object.freeze({ init: App.init, destroy: App.destroy });
+
+  // With defer this runs after parsing but before DOMContentLoaded (readyState
+  // "interactive"), so App.init() runs straight away. The check keeps the file
+  // working if it is ever loaded without defer.
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", App.init);
+    document.addEventListener("DOMContentLoaded", App.init, { once: true });
   } else {
     App.init();
   }
