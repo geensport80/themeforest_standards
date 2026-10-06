@@ -84,8 +84,11 @@
   --container: min(72rem, calc(100% - var(--space-lg)));
   --tap-target: 2.75rem; /* 44px minimum touch target (WCAG 2.5.5) */
   /* Height of the closed sticky header bar: its tallest child (the menu toggle, or the
-     nav links on desktop) plus its block padding. Redefined at 992px in 07. Site header. */
+     nav links on desktop) plus its block padding. Redefined at 992px in 07. Site header.
+     Used for scroll-padding-top and the drawer's top padding. */
   --header-offset: calc(var(--tap-target) + var(--space-sm) * 2);
+  /* Visible height of the bar once it has shrunk (.is-sticky): same content, xs padding. */
+  --header-compact: calc(var(--tap-target) + var(--space-xs) * 2);
 }
 
 /* Set data-theme="light" on <html> to opt out (e.g. from a Customizer toggle). */
@@ -118,6 +121,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body,
@@ -261,7 +265,11 @@ section[tabindex="-1"]:focus {
   outline: none;
 }
 
-/* In-page jumps (native and App.smoothScroll) stop below the sticky header, not under it.
+/* One offset for every scroll into view: hash links, App.smoothScroll, and the browser
+   scrolling a Tab-focused field into view, which also keeps focus from hiding under the
+   sticky header (WCAG 2.4.11). Do not add scroll-margin-top to targets as well: the two
+   add up rather than one backing up the other. --header-offset follows the breakpoint,
+   and the bar never changes height, so the offset is right at every width.
    The reserved scrollbar gutter stops the page shifting sideways when the open drawer
    locks scrolling and the scrollbar disappears. */
 html {
@@ -271,8 +279,8 @@ html {
 
 /* ================= 04. Layout ================= */
 
-/* Every top-level band shares one centred, gutter-safe width. */
-.site-header,
+/* Every top-level band shares one centred, gutter-safe width. The site header is full
+   bleed instead and lines its content up with this width through padding (07. Site header). */
 .hero,
 .section,
 .site-footer {
@@ -398,10 +406,16 @@ html {
 
 /* ================= 07. Site header ================= */
 
-/* Brand + toggle in a sticky bar; drawer and backdrop are siblings (backdrop sits
-   after </header>). Without JavaScript the nav stays in the document flow and the
-   toggle stays hidden. Breakpoints are min-width only (rule 8). */
+/* Brand + toggle in a sticky bar; drawer and backdrop live inside the header so they
+   share its stacking context. Without JavaScript the nav stays in the document flow and
+   the toggle stays hidden. Breakpoints are min-width only (rule 8). */
+/* Full bleed: the bar spans the viewport, and the inline padding equals the gutter that
+   --container leaves, so its content lines up exactly with every section below.
+   pointer-events: none on the box plus auto on its children keeps the transparent strip
+   under a shrunk bar (see below) from blocking clicks on the page. */
 .site-header {
+  --header-shrink: calc(var(--header-offset) - var(--header-compact));
+
   position: sticky;
   top: 0;
   z-index: 40;
@@ -411,24 +425,67 @@ html {
   justify-content: space-between;
   gap: var(--space-sm);
   padding-block: var(--space-sm);
-  background-color: color-mix(in srgb, var(--color-bg) 92%, transparent);
+  padding-inline: max(var(--space-sm), calc((100% - 72rem) / 2));
+  pointer-events: none;
 }
 
-/* Elevation is painted on ::before and faded with opacity (rule 14).
-   Class site-header--stuck is toggled by App.stickyHeader in main.js. */
-.site-header::before {
+.site-header > * {
+  pointer-events: auto;
+}
+
+/* Shrink and elevation once the hero has scrolled away (App.stickyHeader adds .is-sticky).
+   The header box never changes size, so nothing below it moves: no layout shift and no
+   placeholder. What shrinks is what you see: the background (::before) and the shadow
+   (::after) slide up by --header-shrink, and the brand and toggle rise by half of it to
+   stay centred in the compact bar. Transform and opacity only (rule 14).
+   Deliberately no position: fixed, padding change or backdrop-filter: a fixed bar leaves
+   the flow, a padding change resizes it, and backdrop-filter repaints on every scroll
+   frame and makes the header the containing block of the drawer and its backdrop. */
+.site-header::before,
+.site-header::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  box-shadow: var(--shadow);
-  opacity: 0;
   pointer-events: none;
-  transition: opacity var(--duration-fast) var(--ease-out-expo);
+  transition:
+    transform var(--duration-motion) var(--ease-out-expo),
+    opacity var(--duration-fast) var(--ease-out-expo);
 }
 
-.site-header--stuck::before {
+.site-header::before {
+  background-color: color-mix(in srgb, var(--color-bg) 92%, transparent);
+}
+
+.site-header::after {
+  box-shadow: var(--shadow);
+  opacity: 0;
+}
+
+.site-header.is-sticky::before,
+.site-header.is-sticky::after {
+  transform: translateY(calc(var(--header-shrink) * -1));
+}
+
+.site-header.is-sticky::after {
   opacity: 1;
+}
+
+/* At the top of the page the bar stays slightly translucent so the body glow shows
+   through. Once content scrolls under it, 8% show-through ghosts large headings behind
+   the brand, so the stuck bar is opaque. */
+.site-header.is-sticky::before {
+  background-color: var(--color-bg);
+}
+
+.site-header__brand,
+.site-nav__toggle {
+  transition: transform var(--duration-motion) var(--ease-out-expo);
+}
+
+.site-header.is-sticky .site-header__brand,
+.site-header.is-sticky .site-nav__toggle {
+  transform: translateY(calc(var(--header-shrink) / -2));
 }
 
 .site-header__brand {
@@ -643,12 +700,19 @@ html.no-scroll {
     transition: none;
   }
 
+  /* The links rise with the brand. The list moves rather than .site-nav itself, so the
+     drawer's own transform and transitions stay untouched. */
   .site-nav__list {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-xs) var(--space-md);
+    transition: transform var(--duration-motion) var(--ease-out-expo);
+  }
+
+  .site-header.is-sticky .site-nav__list {
+    transform: translateY(calc(var(--header-shrink) / -2));
   }
 
   /* Underline draws left on hover and retracts right on leave; desktop only. */

@@ -397,44 +397,45 @@
     },
 
     /**
-     * Adds site-header--stuck once the page scrolls, so CSS can elevate the bar.
+     * Adds .is-sticky to the header once the hero has scrolled fully above the viewport,
+     * so CSS can fade in its shadow. IntersectionObserver only, no scroll listener.
+     * The header stays position: sticky and never changes size, so this class cannot
+     * cause a layout shift and needs no measuring or placeholder.
      * @namespace App.stickyHeader
      */
     stickyHeader: {
       /** @type {AbortController|null} */
       controller: null,
 
-      /** Pixels of scroll before the bar counts as stuck. */
-      STUCK_AFTER: 8,
-
       /** @returns {void} */
       init: () => {
         const signal = renewSignal(App.stickyHeader);
         const header = select(".site-header");
+        const hero = byId("hero") || select(".hero");
 
-        if (!header) {
+        if (!header || !hero) {
           return;
         }
 
-        let ticking = false;
+        const observer = new IntersectionObserver(([entry]) => {
+          // Not intersecting covers both "above" and "below"; only above counts.
+          header.classList.toggle(
+            "is-sticky",
+            !entry.isIntersecting && entry.boundingClientRect.top < 0
+          );
+        });
 
-        const update = () => {
-          header.classList.toggle("site-header--stuck", window.scrollY > App.stickyHeader.STUCK_AFTER);
-          ticking = false;
-        };
+        observer.observe(hero);
 
-        window.addEventListener(
-          "scroll",
+        // destroy() and re-init both abort: stop observing and drop the state class.
+        signal.addEventListener(
+          "abort",
           () => {
-            if (!ticking) {
-              ticking = true;
-              window.requestAnimationFrame(update);
-            }
+            observer.disconnect();
+            header.classList.remove("is-sticky");
           },
-          { passive: true, signal }
+          { once: true }
         );
-
-        update();
       },
 
       /** @returns {void} */
@@ -445,8 +446,8 @@
 
     /**
      * In-page links: smooth scroll when motion is allowed, then move focus to the
-     * target so keyboard and screen-reader users continue from there. The sticky
-     * header offset comes from scroll-padding-top in style.css.
+     * target so keyboard and screen-reader users continue from there. The sticky-header
+     * offset comes from scroll-padding-top on <html> in style.css.
      * Called from App.events.handleClick, so there is one click path for the page.
      * @namespace App.smoothScroll
      */
@@ -481,6 +482,15 @@
           return;
         }
 
+        // Same-page hash only; leave real URLs and download/modified clicks alone.
+        if (link.origin && link.origin !== window.location.origin) {
+          return;
+        }
+
+        if (link.pathname !== window.location.pathname) {
+          return;
+        }
+
         event.preventDefault();
 
         destination.scrollIntoView({
@@ -499,7 +509,10 @@
         }
 
         destination.focus({ preventScroll: true });
-        history.pushState(null, "", hash);
+
+        if (window.history && typeof window.history.pushState === "function") {
+          window.history.pushState(null, "", hash);
+        }
       },
     },
 
