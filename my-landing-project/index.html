@@ -66,17 +66,30 @@
       <img class="site-header__logo" src="assets/images/logo.svg" alt="" width="36" height="36" decoding="async">
       Aurelia Dental
     </a>
-    <button class="site-nav__toggle" type="button" data-action="toggle-nav" data-label-open="Menu" data-label-close="Close" aria-expanded="false" aria-controls="primary-nav">Menu</button>
-    <nav class="site-nav" id="primary-nav" aria-label="Primary">
+    <button
+      class="site-nav__toggle"
+      type="button"
+      data-action="toggle-nav"
+      aria-expanded="false"
+      aria-controls="primary-navigation"
+      aria-label="Menu">
+      <span class="site-nav__toggle-line" aria-hidden="true"></span>
+      <span class="site-nav__toggle-line" aria-hidden="true"></span>
+      <span class="site-nav__toggle-line" aria-hidden="true"></span>
+    </button>
+    <!-- Inside the header on purpose: it shares the header's stacking context, so it
+         can sit under the drawer and the toggle instead of on top of them. -->
+    <div class="site-header__backdrop" data-action="close-nav" hidden></div>
+    <nav class="site-nav" id="primary-navigation" aria-label="Primary">
       <ul class="site-nav__list" data-action="close-nav">
-        <li><a href="#services">Dental care</a></li>
-        <li><a href="#aesthetics">Aesthetics</a></li>
-        <li><a href="#approach">Approach</a></li>
-        <li><a href="#stories">Stories</a></li>
-        <li><a href="#clinicians">Team</a></li>
-        <li><a href="#visit">Visit</a></li>
-        <li><a href="#pricing">Pricing</a></li>
-        <li><a href="#contact">Contact</a></li>
+        <li><a class="site-nav__link" href="#services">Dental care</a></li>
+        <li><a class="site-nav__link" href="#aesthetics">Aesthetics</a></li>
+        <li><a class="site-nav__link" href="#approach">Approach</a></li>
+        <li><a class="site-nav__link" href="#stories">Stories</a></li>
+        <li><a class="site-nav__link" href="#clinicians">Team</a></li>
+        <li><a class="site-nav__link" href="#visit">Visit</a></li>
+        <li><a class="site-nav__link" href="#pricing">Pricing</a></li>
+        <li><a class="site-nav__link" href="#contact">Contact</a></li>
       </ul>
     </nav>
   </header>

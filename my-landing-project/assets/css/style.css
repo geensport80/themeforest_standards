@@ -23,6 +23,7 @@
   --color-text: #1e293b;
   --color-muted: #64748b;
   --color-danger: #b42318;        /* error text: 6.3:1 on --color-bg */
+  --color-scrim: rgb(15 23 42 / 0.45); /* overlay behind drawers; always darkens */
   --tone: #000000; /* mixed in for hover states; white in dark mode */
 
   --color-primary-hover: color-mix(in srgb, var(--color-primary) 80%, var(--tone));
@@ -82,6 +83,9 @@
   /* Layout */
   --container: min(72rem, calc(100% - var(--space-lg)));
   --tap-target: 2.75rem; /* 44px minimum touch target (WCAG 2.5.5) */
+  /* Height of the closed sticky header bar: its tallest child (the menu toggle, or the
+     nav links on desktop) plus its block padding. Redefined at 992px in 07. Site header. */
+  --header-offset: calc(var(--tap-target) + var(--space-sm) * 2);
 }
 
 /* Set data-theme="light" on <html> to opt out (e.g. from a Customizer toggle). */
@@ -98,6 +102,7 @@
     --color-text: #e2e8f0;
     --color-muted: #94a3b8;
     --color-danger: #fda29b;
+    --color-scrim: rgb(0 0 0 / 0.6);
     --tone: #ffffff;
   }
 }
@@ -249,9 +254,19 @@ a {
   outline-offset: 3px;
 }
 
-/* Skip-link target: focusable for assistive tech, no ring around the whole page. */
-.site-main:focus {
+/* Skip-link and in-page jump targets take focus for assistive tech; a ring around a
+   whole page region would only distract, so these never show one. */
+.site-main:focus,
+section[tabindex="-1"]:focus {
   outline: none;
+}
+
+/* In-page jumps (native and App.smoothScroll) stop below the sticky header, not under it.
+   The reserved scrollbar gutter stops the page shifting sideways when the open drawer
+   locks scrolling and the scrollbar disappears. */
+html {
+  scroll-padding-top: calc(var(--header-offset) + var(--space-sm));
+  scrollbar-gutter: stable;
 }
 
 /* ================= 04. Layout ================= */
@@ -383,15 +398,37 @@ a {
 
 /* ================= 07. Site header ================= */
 
-/* Stacked menu behind a toggle on small screens; horizontal bar from 992px.
-   Without JavaScript the menu is always visible and the toggle stays hidden. */
+/* Brand + toggle in a sticky bar; drawer and backdrop are siblings (backdrop sits
+   after </header>). Without JavaScript the nav stays in the document flow and the
+   toggle stays hidden. Breakpoints are min-width only (rule 8). */
 .site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
   padding-block: var(--space-sm);
+  background-color: color-mix(in srgb, var(--color-bg) 92%, transparent);
+}
+
+/* Elevation is painted on ::before and faded with opacity (rule 14).
+   Class site-header--stuck is toggled by App.stickyHeader in main.js. */
+.site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out-expo);
+}
+
+.site-header--stuck::before {
+  opacity: 1;
 }
 
 .site-header__brand {
@@ -411,6 +448,77 @@ a {
   height: 2.25rem;
 }
 
+/* ---- Stacking inside the header ----
+   .site-header is sticky with a z-index, so it is its own stacking context: anything
+   inside it can never rise above anything outside it. The backdrop therefore lives
+   in the header too, and the three layers are ordered here: backdrop under the
+   drawer, drawer under the toggle, so the X stays visible and every link is tappable. */
+
+/* ---- Hamburger toggle (mobile only when JS is on) ---- */
+
+.site-nav__toggle {
+  --toggle-bar: 1.25rem;
+  --toggle-line: 2px;
+  --toggle-gap: 0.35rem;
+  --toggle-shift: calc(var(--toggle-gap) + var(--toggle-line));
+
+  position: relative;
+  z-index: 3;
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap-target);
+  height: var(--tap-target);
+  padding: 0;
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.js .site-nav__toggle {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.site-nav__toggle-line {
+  display: block;
+  width: var(--toggle-bar);
+  height: var(--toggle-line);
+  border-radius: var(--toggle-line);
+  background: currentColor;
+  transition:
+    transform var(--duration-motion) var(--ease-out-expo),
+    opacity var(--duration-fast) var(--ease-out-expo);
+}
+
+.site-nav__toggle-line + .site-nav__toggle-line {
+  margin-top: var(--toggle-gap);
+}
+
+/* Morph the three bars into an X while the drawer is open. */
+.site-nav__toggle[aria-expanded="true"] .site-nav__toggle-line:nth-child(1) {
+  transform: translateY(var(--toggle-shift)) rotate(45deg);
+}
+
+.site-nav__toggle[aria-expanded="true"] .site-nav__toggle-line:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.site-nav__toggle[aria-expanded="true"] .site-nav__toggle-line:nth-child(3) {
+  transform: translateY(calc(var(--toggle-shift) * -1)) rotate(-45deg);
+}
+
+/* ---- Navigation: in the bar on desktop, an off-canvas drawer on mobile ---- */
+
+.site-nav {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
 .site-nav__list {
   display: flex;
   flex-direction: column;
@@ -418,7 +526,7 @@ a {
   gap: var(--space-2xs);
 }
 
-.site-nav__list a {
+.site-nav__link {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -426,9 +534,125 @@ a {
   text-decoration: none;
 }
 
-/* Underline draws left on hover and retracts right on leave; desktop nav only. */
+/* Off-canvas only when JS is available; no-JS visitors keep the in-flow list. */
+.js .site-nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: min(20rem, 80vw);
+  height: 100vh;
+  height: 100dvh;
+  padding: calc(var(--header-offset) + var(--space-sm)) var(--space-md) var(--space-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform var(--duration-motion) var(--ease-out-expo),
+    visibility 0s linear var(--duration-motion);
+}
+
+.js .site-nav.is-open {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform var(--duration-motion) var(--ease-out-expo),
+    visibility 0s linear 0s;
+}
+
+/* Set for one frame by App.navigation when the layout returns to mobile, so a drawer
+   coming back from the desktop bar snaps off-canvas instead of sliding across. */
+.js .site-nav--instant {
+  transition: none;
+}
+
+/* ---- Backdrop ---- */
+
+.site-header__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background-color: var(--color-scrim);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity var(--duration-motion) var(--ease-out-expo),
+    visibility 0s linear var(--duration-motion);
+}
+
+.site-header__backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    opacity var(--duration-motion) var(--ease-out-expo),
+    visibility 0s linear 0s;
+}
+
+/* Lock page scroll while the drawer is open (toggled on <html> by App.navigation).
+   It must sit on <html>, not <body>: overflow set on <body> is handed to the viewport
+   and Chrome then ignores scrollbar-gutter, so the page would shift sideways. */
+html.no-scroll {
+  overflow: hidden;
+}
+
 @media (min-width: 992px) {
-  .site-nav__list a::after {
+  :root {
+    --header-offset: calc(var(--tap-target) + var(--space-md) * 2);
+  }
+
+  .site-header {
+    flex-wrap: nowrap;
+    gap: var(--space-md);
+    padding-block: var(--space-md);
+  }
+
+  .site-header__brand {
+    flex: 0 1 auto;
+    font-size: 1.35rem;
+  }
+
+  .js .site-nav__toggle,
+  .site-header__backdrop {
+    display: none;
+  }
+
+  .site-nav,
+  .js .site-nav,
+  .js .site-nav.is-open {
+    position: static;
+    z-index: auto;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: row;
+    justify-content: flex-end;
+    width: auto;
+    height: auto;
+    padding: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+    visibility: visible;
+    transition: none;
+  }
+
+  .site-nav__list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-xs) var(--space-md);
+  }
+
+  /* Underline draws left on hover and retracts right on leave; desktop only. */
+  .site-nav__link::after {
     content: "";
     position: absolute;
     right: 0;
@@ -442,77 +666,10 @@ a {
   }
 
   @media (hover: hover) {
-    .site-nav__list a:hover::after {
+    .site-nav__link:hover::after {
       transform: scaleX(1);
       transform-origin: left;
     }
-  }
-}
-
-.site-nav__toggle {
-  display: none;
-  flex: none;
-  align-items: center;
-  align-self: center;
-  justify-content: center;
-  min-height: var(--tap-target);
-  padding: 0.4rem var(--space-sm);
-  border: var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  font-size: 0.875rem;
-  font-weight: var(--weight-semibold);
-  cursor: pointer;
-}
-
-.site-nav__toggle[aria-expanded="true"] {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.js .site-nav__toggle {
-  display: inline-flex;
-}
-
-.js .site-nav {
-  display: none;
-  flex-basis: 100%;
-  min-width: 0;
-}
-
-.site-nav.is-open {
-  display: block;
-}
-
-@media (min-width: 992px) {
-  .site-header {
-    flex-wrap: nowrap;
-    gap: var(--space-md);
-    padding-block: var(--space-md);
-  }
-
-  .site-header__brand {
-    flex: 0 1 auto;
-    font-size: 1.35rem;
-  }
-
-  .js .site-nav__toggle {
-    display: none;
-  }
-
-  .js .site-nav,
-  .site-nav.is-open {
-    display: flex;
-    flex: 1 1 auto;
-    justify-content: flex-end;
-  }
-
-  .site-nav__list {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-xs) var(--space-md);
   }
 }
 

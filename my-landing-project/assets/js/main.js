@@ -230,8 +230,11 @@
     },
 
     /**
-     * Mobile menu: toggle, close on link, Escape and desktop width.
-     * Labels come from data-label-open / data-label-close on the toggle.
+     * Mobile off-canvas drawer: toggle, backdrop, Escape, focus handling and desktop reset.
+     * While open it behaves as a modal: everything outside the toggle and the drawer is
+     * made inert, so Tab and screen readers stay in the menu.
+     * Markup hooks: .site-nav__toggle[aria-controls], .site-header__backdrop, and
+     * data-action="toggle-nav" / "close-nav" (close-nav sits on the backdrop and the link list).
      * @namespace App.navigation
      */
     navigation: {
@@ -242,30 +245,69 @@
       init: () => {
         const signal = renewSignal(App.navigation);
         const toggle = select(".site-nav__toggle");
-        const nav = toggle ? byId(toggle.getAttribute("aria-controls")) : null;
+        const drawer = toggle ? byId(toggle.getAttribute("aria-controls")) : null;
 
-        if (!toggle || !nav) {
+        if (!toggle || !drawer) {
           return;
         }
 
         const header = toggle.closest(".site-header");
-        const labelOpen = toggle.getAttribute("data-label-open") || toggle.textContent.trim();
-        const labelClose = toggle.getAttribute("data-label-close") || labelOpen;
+        const backdrop = header ? select(".site-header__backdrop", header) : null;
+        const brand = header ? select(".site-header__brand", header) : null;
+
+        /** Elements this module made inert, so closing restores exactly those. */
+        let inerted = [];
 
         const isOpen = () => toggle.getAttribute("aria-expanded") === "true";
 
         /**
-         * Sync aria-expanded, the visible label, and the open classes.
-         * @param {boolean} open
+         * Make the rest of the page inert while the drawer is open, or undo that.
+         * Elements that were already inert are left alone.
+         * @param {boolean} on
          * @returns {void}
          */
-        const setOpen = (open) => {
-          toggle.setAttribute("aria-expanded", String(open));
-          toggle.textContent = open ? labelClose : labelOpen;
-          nav.classList.toggle("is-open", open);
+        const setPageInert = (on) => {
+          if (on && !inerted.length) {
+            const outside = [...document.body.children].filter(
+              (el) => el !== header && el.tagName !== "SCRIPT"
+            );
 
-          if (header) {
-            header.classList.toggle("site-header--menu-open", open);
+            inerted = [...outside, brand].filter((el) => el && !el.inert);
+            inerted.forEach((el) => {
+              el.inert = true;
+            });
+          } else if (!on) {
+            inerted.forEach((el) => {
+              el.inert = false;
+            });
+            inerted = [];
+          }
+        };
+
+        /**
+         * Single source of truth for the menu state. The drawer only opens below the
+         * desktop breakpoint; on desktop the bar is always visible and never inert.
+         * @param {boolean} open
+         * @param {{returnFocus?: boolean}} [options]
+         * @returns {void}
+         */
+        const setOpen = (open, { returnFocus = false } = {}) => {
+          const isDesktop = App.config.desktopQuery.matches;
+          const show = open && !isDesktop;
+
+          toggle.setAttribute("aria-expanded", String(show));
+          drawer.classList.toggle("is-open", show);
+          drawer.inert = !show && !isDesktop;
+          document.documentElement.classList.toggle("no-scroll", show);
+
+          if (backdrop) {
+            backdrop.classList.toggle("is-open", show);
+          }
+
+          setPageInert(show);
+
+          if (!show && returnFocus) {
+            toggle.focus();
           }
         };
 
@@ -273,8 +315,17 @@
 
         App.events.on(
           "close-nav",
-          (event) => {
-            if (event.target.closest("a")) {
+          (event, trigger) => {
+            if (!isOpen()) {
+              return;
+            }
+
+            // The backdrop closes on any click and hands focus back to the toggle.
+            // The link list closes only when a link was used; App.smoothScroll then
+            // moves focus to the section, so it is not returned here.
+            if (trigger === backdrop) {
+              setOpen(false, { returnFocus: true });
+            } else if (event.target.closest("a")) {
               setOpen(false);
             }
           },
@@ -285,8 +336,7 @@
           "keydown",
           (event) => {
             if (event.key === "Escape" && isOpen()) {
-              setOpen(false);
-              toggle.focus();
+              setOpen(false, { returnFocus: true });
             }
           },
           { signal }
@@ -295,15 +345,49 @@
         App.config.desktopQuery.addEventListener(
           "change",
           (event) => {
+            const toggleHadFocus = document.activeElement === toggle;
+
             if (event.matches) {
               setOpen(false);
+
+              // The toggle is hidden on desktop; keep keyboard focus in the navigation.
+              const firstLink = toggleHadFocus ? select("a", drawer) : null;
+
+              if (firstLink) {
+                firstLink.focus();
+              }
+            } else {
+              // Back on mobile: snap the drawer off-canvas instead of sliding it across.
+              drawer.classList.add("site-nav--instant");
+              setOpen(false);
+              void drawer.offsetWidth; // commit the jump before transitions return
+              window.requestAnimationFrame(() => drawer.classList.remove("site-nav--instant"));
             }
           },
           { signal }
         );
 
-        // A restart keeps the current open state but brings label and classes back in line.
-        setOpen(isOpen());
+        // The backdrop ships hidden for no-JS visitors; from here CSS fades it in and out.
+        if (backdrop) {
+          backdrop.hidden = false;
+        }
+
+        // destroy() and re-init both abort this signal: close the menu first, so the page
+        // is never left scroll-locked, inert, or with a drawer nothing can close.
+        signal.addEventListener(
+          "abort",
+          () => {
+            setOpen(false);
+
+            if (backdrop) {
+              backdrop.hidden = true;
+            }
+          },
+          { once: true }
+        );
+
+        // Cold start: closed, and inert off-canvas on mobile so its links are not tabbable.
+        setOpen(false);
       },
 
       /** @returns {void} */
