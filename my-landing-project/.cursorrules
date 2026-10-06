@@ -22,7 +22,7 @@ Project conventions (assets/css/style.css, assets/js/main.js):
 Accessibility (WCAG 2.2 AA minimum):
 15. Text contrast at least 4.5:1; UI component edges, focus rings and meaningful icons at least 3:1. Check both light and dark mode, including colours produced by color-mix().
 16. Every form control has a visible <label for>. Never use placeholder as a label or for essential hints; put hints in visible text linked with aria-describedby. Errors are written per field, linked with aria-describedby, flagged with aria-invalid, and focus moves to the first invalid field. Colour is never the only signal.
-17. Keyboard focus is always visible through :focus-visible. Touch targets are at least 24px (44px preferred, --tap-target). Form inputs keep a font-size of 16px or more so iOS does not zoom.
+17. Keyboard focus is always visible through :focus-visible. Touch targets are at least 24px (44px preferred, --tap-target). Form inputs use --text-form (minimum 16px) so iOS does not zoom; custom-styled fields reset -webkit-appearance / appearance in the stylesheet reset (checkbox, radio, range, file, and color keep native chrome).
 18. Use the correct input types and autocomplete tokens (email, tel, date, name) so phones show the right keyboard or picker.
 
 Performance and security:
