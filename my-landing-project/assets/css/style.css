@@ -34,6 +34,15 @@
   --border: 1px solid var(--color-line);
   --shadow: 0 12px 32px color-mix(in srgb, var(--color-primary) 8%, transparent);
   --shadow-lg: 0 20px 48px color-mix(in srgb, var(--color-primary) 16%, transparent);
+  /* Layered lift for hover only: transform + shadow stay on the compositor. */
+  --shadow-lift:
+    0 4px 10px color-mix(in srgb, var(--color-primary) 5%, transparent),
+    0 18px 40px color-mix(in srgb, var(--color-primary) 14%, transparent);
+  --shadow-pressed: 0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 0.2s;
+  --duration-motion: 0.25s;
+  --lift: 0.25rem; /* hover rise; set to 0 under prefers-reduced-motion */
 
   /* Spacing: in-between steps are named after their neighbours. */
   --space-2xs: 0.25rem;
@@ -202,8 +211,12 @@ a {
   text-underline-offset: 0.2em;
 }
 
-a:hover {
-  color: var(--color-accent-strong);
+/* Guarded like every other hover: touch browsers keep :hover after a tap, and an
+   unguarded rule would turn link-styled buttons teal on their own fill (2.2:1). */
+@media (hover: hover) {
+  a:hover {
+    color: var(--color-accent-strong);
+  }
 }
 
 :focus-visible {
@@ -227,6 +240,37 @@ a:hover {
   margin-inline: auto;
 }
 
+/* Hover elevation, shared by buttons and cards.
+   Transitioning box-shadow or border-color repaints the element on every frame, and
+   on a transformed element that repaint also re-uploads its compositor layer.
+   Instead the final shadow (and accent edge) is painted once on ::before and only its
+   opacity animates, so a hover costs transform + opacity alone. Outer shadows never
+   paint inside the box, so the layer can sit on top with pointer-events: none. */
+.button::before,
+.service-card::before,
+.pricing-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-motion) var(--ease-out-expo);
+}
+
+/* Keeps :hover while a card rises away from a cursor resting on its bottom edge;
+   without it the card drops back, regains hover and jitters. */
+.service-card::after,
+.pricing-card::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--lift);
+}
+
 /* ================= 05. Skip link ================= */
 
 .skip-link {
@@ -247,9 +291,13 @@ a:hover {
   transform: none;
 }
 
-/* ================= 06. Button ================= */
+/* ================= 06. Button =================
+   Primary = filled .button; secondary = .button--secondary.
+   Hover rises by half of --lift; the shadow fades in on ::before (see 04. Layout).
+   background-color is the one painted transition: the button is small, so it stays cheap. */
 
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -264,12 +312,34 @@ a:hover {
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    transform var(--duration-motion) var(--ease-out-expo),
+    background-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.button::before {
+  box-shadow: var(--shadow);
 }
 
 /* Colour is restated to beat the generic a:hover. */
-.button:hover {
-  background: var(--color-primary-hover);
-  color: var(--color-on-primary);
+@media (hover: hover) {
+  .button:hover {
+    transform: translateY(calc(var(--lift) * -0.5));
+    background: var(--color-primary-hover);
+    color: var(--color-on-primary);
+  }
+
+  .button:hover::before {
+    opacity: 1;
+  }
+}
+
+.button:active {
+  transform: none;
+}
+
+.button:active::before {
+  box-shadow: var(--shadow-pressed);
 }
 
 /* Lower-emphasis action, so the one filled .button nearby keeps the eye. */
@@ -279,9 +349,11 @@ a:hover {
   color: var(--color-primary);
 }
 
-.button--secondary:hover {
-  background: var(--color-accent-soft);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .button--secondary:hover {
+    background: var(--color-accent-soft);
+    color: var(--color-primary);
+  }
 }
 
 /* ================= 07. Site header ================= */
@@ -322,10 +394,34 @@ a:hover {
 }
 
 .site-nav__list a {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--tap-target);
   text-decoration: none;
+}
+
+/* Underline draws left on hover and retracts right on leave; desktop nav only. */
+@media (min-width: 992px) {
+  .site-nav__list a::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0.35rem;
+    left: 0;
+    height: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform var(--duration-motion) var(--ease-out-expo);
+  }
+
+  @media (hover: hover) {
+    .site-nav__list a:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
 }
 
 .site-nav__toggle {
@@ -617,22 +713,33 @@ a:hover {
   border: var(--border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: transform var(--duration-motion) var(--ease-out-expo);
 }
 
-/* Hover is kept separate and guarded: the links jump in-page to #contact,
-   so an unguarded :hover would stay stuck on touch screens. */
+/* The accent edge rides on the shared ::before layer, so it fades with the shadow
+   instead of repainting the card. inset: -1px lines it up with the card's own border. */
+.service-card::before {
+  inset: -1px;
+  border: 1px solid var(--color-accent-strong);
+}
+
+/* Keyboard focus shows the accent and shadow without the lift. */
 .service-card:focus-within {
   --arrow-shift: 0.2rem;
-  border-color: var(--color-accent);
-  box-shadow: var(--shadow);
+}
+
+.service-card:focus-within::before {
+  opacity: 1;
 }
 
 @media (hover: hover) {
   .service-card:hover {
     --arrow-shift: 0.2rem;
-    border-color: var(--color-accent);
-    box-shadow: var(--shadow);
+    transform: translateY(calc(var(--lift) * -1));
+  }
+
+  .service-card:hover::before {
+    opacity: 1;
   }
 }
 
@@ -695,12 +802,7 @@ a:hover {
   width: 1rem;
   height: 1rem;
   transform: translateX(var(--arrow-shift, 0));
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .service-card__arrow {
-    transition: transform 0.25s ease;
-  }
+  transition: transform var(--duration-motion) var(--ease-out-expo);
 }
 
 @media (min-width: 992px) {
@@ -1019,6 +1121,7 @@ textarea.contact-form__control {
 }
 
 .pricing-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1026,13 +1129,24 @@ textarea.contact-form__control {
   border: var(--border);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  transition: transform var(--duration-motion) var(--ease-out-expo);
 }
 
-/* Border plus a 1px shadow ring reads as 2px without shifting the layout. */
+/* Border plus a 1px shadow ring reads as 2px without shifting the layout.
+   This shadow is static; the hover shadow fades in on the shared ::before layer. */
 .pricing-card--featured {
-  position: relative;
   border-color: var(--color-accent-strong);
   box-shadow: 0 0 0 1px var(--color-accent-strong), var(--shadow-lg);
+}
+
+@media (hover: hover) {
+  .pricing-card:hover {
+    transform: translateY(calc(var(--lift) * -1));
+  }
+
+  .pricing-card:hover::before {
+    opacity: 1;
+  }
 }
 
 /* Sits after the plan name in the markup, so heading navigation announces the name first;
@@ -1222,8 +1336,8 @@ textarea.contact-form__control {
 }
 
 /* ================= 18. Utilities =================
-   Single-purpose overrides, kept last so nothing above can follow them.
-   !important is allowed here only: a utility must beat any component selector,
+   Single-purpose overrides. !important is allowed here and in the reduced-motion
+   reset below: a utility must beat any component selector,
    e.g. .d-none still hides .js .site-nav__toggle (0,2,0).
    Names and steps follow Bootstrap 5: 3 = 1rem, 4 = 1.5rem, 5 = 3rem. */
 
@@ -1298,5 +1412,28 @@ textarea.contact-form__control {
 
   .flex-md-row {
     flex-direction: row !important;
+  }
+}
+
+/* ================= 19. Reduced motion =================
+   Last so it wins every component transition and animation above.
+   !important is intentional: motion preference must override utilities too. */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Hover still answers with shadow, accent and colour, but nothing moves. */
+  :root {
+    --lift: 0px;
+  }
+
+  /* 0.01ms rather than 0 so transitionend and animationend still fire for scripts. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
   }
 }
