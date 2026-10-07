@@ -107,7 +107,7 @@
   /* ------------------------------------------------------------------ */
 
   /** Boot order. Each entry names an App module with init() and destroy(). */
-  const MODULES = ["events", "navigation", "stickyHeader", "smoothScroll", "forms"];
+  const MODULES = ["events", "navigation", "stickyHeader", "smoothScroll", "accordion", "forms"];
 
   /**
    * Central application controller.
@@ -513,6 +513,74 @@
         if (window.history && typeof window.history.pushState === "function") {
           window.history.pushState(null, "", hash);
         }
+      },
+    },
+
+    /**
+     * FAQ accordions. Works for any number of accordions and items per page, so each
+     * one can come from an Elementor widget or an ACF repeater.
+     * Markup options: data-single-open on .faq-accordion closes the other items when one
+     * opens; aria-expanded="true" on a trigger in the markup starts that item open.
+     * @namespace App.accordion
+     */
+    accordion: {
+      /** @type {AbortController|null} */
+      controller: null,
+
+      /** @returns {void} */
+      init: () => {
+        const signal = renewSignal(App.accordion);
+
+        /**
+         * Sync one item's class, aria-expanded and panel inert state.
+         * Closed panels stay in the layout for the height animation; inert keeps their
+         * contents out of the tab order and the accessibility tree.
+         * @param {HTMLElement} trigger
+         * @param {boolean} open
+         * @returns {void}
+         */
+        const setOpen = (trigger, open) => {
+          const item = trigger.closest(".faq-item");
+          const panel = byId(trigger.getAttribute("aria-controls"));
+
+          trigger.setAttribute("aria-expanded", String(open));
+
+          if (item) {
+            item.classList.toggle("is-open", open);
+          }
+
+          if (panel) {
+            panel.inert = !open;
+          }
+        };
+
+        // Start from the markup: items authored with aria-expanded="true" open, the rest
+        // closed. Re-running init() after a page-builder re-render keeps that contract.
+        selectAll(".faq-accordion .faq-trigger").forEach((trigger) => {
+          setOpen(trigger, trigger.getAttribute("aria-expanded") === "true");
+        });
+
+        App.events.on(
+          "toggle-faq",
+          (event, trigger) => {
+            const accordion = trigger.closest(".faq-accordion");
+            const willOpen = trigger.getAttribute("aria-expanded") !== "true";
+
+            if (willOpen && accordion && accordion.hasAttribute("data-single-open")) {
+              selectAll(".faq-trigger[aria-expanded='true']", accordion).forEach((other) => {
+                setOpen(other, false);
+              });
+            }
+
+            setOpen(trigger, willOpen);
+          },
+          signal
+        );
+      },
+
+      /** @returns {void} */
+      destroy: () => {
+        release(App.accordion);
       },
     },
 
