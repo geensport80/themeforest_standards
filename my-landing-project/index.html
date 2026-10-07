@@ -623,20 +623,34 @@
           <!-- Replace action with your form handler (PHP endpoint, or a plugin shortcode in WordPress).
                The handler must re-validate every field, discard any submission with "website" filled in,
                and verify a CSRF token (wp_nonce_field() in WordPress). Serve the page over HTTPS:
-               this form collects health details. -->
-          <form class="contact-form" action="#" method="post" novalidate
+               this form collects health details.
+               AJAX (Phase 2): add data-endpoint with a same-origin URL, e.g.
+               data-endpoint="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>" plus
+               <input type="hidden" name="action" value="aurelia_contact"> and wp_nonce_field( 'aurelia_contact' ),
+               or a REST route URL. Keep action pointing at the same handler for visitors without JavaScript.
+               Reply with wp_send_json_success() or wp_send_json_error( array( 'errors' => array( 'email' => '...' ) ) ). -->
+          <div class="form-success-banner" id="form-success-banner" tabindex="-1" hidden>
+            <p class="form-success-banner__title">Request received</p>
+            <p class="form-success-banner__text">Thank you. Your consultation request is noted on this page. The studio will confirm a time by email once this form is connected to a handler.</p>
+          </div>
+          <form class="contact-form" action="#" method="post" novalidate data-validate
+            data-status="contact-status"
+            data-success="form-success-banner"
             data-msg-invalid="Please correct the fields marked below."
+            data-msg-sending="Sending your request…"
+            data-msg-error="Your request could not be sent. Check your connection and try again, or call the studio."
             data-msg-success="Thank you. Your consultation request is noted on this page. The studio will confirm a time by email once this form is connected to a handler.">
             <p class="contact-form__note">Fields marked * are required.</p>
             <p class="contact-form__field">
               <label for="contact-name">Full name <span aria-hidden="true">*</span></label>
-              <input class="contact-form__control" id="contact-name" name="name" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" maxlength="100" required aria-describedby="contact-name-error"
-                data-error-required="Enter your full name.">
+              <input class="contact-form__control" id="contact-name" name="name" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" maxlength="100" required data-validate="name" aria-describedby="contact-name-error"
+                data-error-required="Enter your full name."
+                data-error-format="Use letters, spaces, hyphens, apostrophes or full stops only.">
               <span class="contact-form__error" id="contact-name-error"></span>
             </p>
             <p class="contact-form__field">
               <label for="contact-email">Email address <span aria-hidden="true">*</span></label>
-              <input class="contact-form__control" id="contact-email" name="email" type="email" autocomplete="email" spellcheck="false" maxlength="254" required aria-describedby="contact-email-error"
+              <input class="contact-form__control" id="contact-email" name="email" type="email" autocomplete="email" spellcheck="false" maxlength="254" required data-validate="email" aria-describedby="contact-email-error"
                 data-error-required="Enter your email address."
                 data-error-format="Enter an email address in the format name@example.com.">
               <span class="contact-form__error" id="contact-email-error"></span>
@@ -644,9 +658,9 @@
             <p class="contact-form__field">
               <label for="contact-phone">Phone number <span aria-hidden="true">*</span></label>
               <span class="contact-form__hint" id="contact-phone-hint">Include your country code, for example +1 555 010 1840.</span>
-              <input class="contact-form__control" id="contact-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" pattern="[0-9 +.\(\)\-]{7,20}" required aria-describedby="contact-phone-hint contact-phone-error"
+              <input class="contact-form__control" id="contact-phone" name="phone" type="tel" autocomplete="tel" maxlength="20" required data-validate="phone" aria-describedby="contact-phone-hint contact-phone-error"
                 data-error-required="Enter your phone number."
-                data-error-format="Enter a phone number using digits, spaces and + ( ) - only.">
+                data-error-format="Enter a phone number with 9 to 15 digits. Use digits, spaces, ( ) - . and an optional + at the start.">
               <span class="contact-form__error" id="contact-phone-error"></span>
             </p>
             <p class="contact-form__field">
@@ -665,8 +679,9 @@
               <span class="contact-form__error" id="contact-service-error"></span>
             </p>
             <p class="contact-form__field">
-              <label for="contact-date">Preferred date</label>
-              <input class="contact-form__control" id="contact-date" name="date" type="date" aria-describedby="contact-date-error"
+              <label for="contact-date">Preferred date <span aria-hidden="true">*</span></label>
+              <input class="contact-form__control" id="contact-date" name="date" type="date" required data-validate="future-date" aria-describedby="contact-date-error"
+                data-error-required="Choose a preferred date."
                 data-error-format="Choose today or a later date.">
               <span class="contact-form__error" id="contact-date-error"></span>
             </p>
@@ -677,7 +692,7 @@
             </p>
             <p class="contact-form__trap" aria-hidden="true">
               <label for="contact-website">Leave this field empty</label>
-              <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off">
+              <input id="contact-website" name="website" type="text" tabindex="-1" autocomplete="off" data-honeypot>
             </p>
             <p class="contact-form__consent">
               <input class="contact-form__checkbox" id="contact-consent" name="consent" type="checkbox" value="granted" required aria-describedby="contact-consent-error contact-privacy"

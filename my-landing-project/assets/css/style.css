@@ -23,6 +23,7 @@
   --color-text: #1e293b;
   --color-muted: #64748b;
   --color-danger: #b42318;        /* error text: 6.3:1 on --color-bg */
+  --color-form-valid: #2a9d8f;    /* valid field edge only, never text: 3.3:1 on white, 4.4:1 on dark surface */
   --color-scrim: rgb(15 23 42 / 0.45); /* overlay behind drawers; always darkens */
   --tone: #000000; /* mixed in for hover states; white in dark mode */
 
@@ -1218,6 +1219,12 @@ textarea.contact-form__control {
 /* Colour backs up the written error message; it is never the only signal. */
 .contact-form__control[aria-invalid="true"] {
   border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 22%, transparent);
+}
+
+.contact-form__control.is-valid {
+  border-color: var(--color-form-valid);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-form-valid) 22%, transparent);
 }
 
 .contact-form__control--select {
@@ -1232,7 +1239,8 @@ textarea.contact-form__control {
   background-repeat: no-repeat;
 }
 
-/* Empty until main.js writes a message, so it takes no space. */
+/* Always rendered (never display: none) so the text main.js writes is in the
+   accessibility tree when the field's aria-describedby is read. Empty, it takes no space. */
 .contact-form__error {
   display: block;
   color: var(--color-danger);
@@ -1241,7 +1249,7 @@ textarea.contact-form__control {
 }
 
 .contact-form__error:not(:empty) {
-  margin-top: 0.35rem;
+  margin-top: var(--space-2xs);
 }
 
 .contact-form__consent {
@@ -1286,6 +1294,43 @@ textarea.contact-form__control {
 
 .contact-form__status[data-state="error"] {
   border-inline-start-color: var(--color-danger);
+}
+
+.form-success-banner {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-sm-md);
+  border: 1px solid color-mix(in srgb, var(--color-form-valid) 45%, var(--color-surface));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-form-valid) 12%, var(--color-surface)),
+      var(--color-surface)
+    );
+  color: var(--color-text);
+}
+
+.form-success-banner:focus {
+  outline: none;
+}
+
+.form-success-banner:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 3px;
+}
+
+/* --color-text, not --color-form-valid or --color-muted: both fall below 4.5:1 on the tint. */
+.form-success-banner__title {
+  margin: 0 0 var(--space-2xs);
+  color: var(--color-text);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+}
+
+.form-success-banner__text {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-small);
 }
 
 .contact-form__submit {

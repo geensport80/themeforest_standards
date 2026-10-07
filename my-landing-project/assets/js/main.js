@@ -72,6 +72,16 @@
     }
   };
 
+  /**
+   * Today's local calendar date as YYYY-MM-DD (not UTC, which can be a day off).
+   * @returns {string}
+   */
+  const localToday = () => {
+    const today = new Date();
+    today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+    return today.toISOString().slice(0, 10);
+  };
+
   /* ------------------------------------------------------------------ */
   /*  Lifecycle helpers                                                   */
   /* ------------------------------------------------------------------ */
@@ -585,124 +595,370 @@
     },
 
     /**
-     * Contact form client-side checks. Messages live on data-error-* / data-msg-*
-     * attributes; this module only writes them with textContent.
+     * Contact forms: client-side checks, then an optional same-origin POST. Every
+     * form[data-validate] on the page is handled, so a builder can repeat the form.
+     * Client checks are for the visitor only; the server re-validates everything (rule 22).
+     *
+     * Markup contract (all copy stays in the markup, rule 21):
+     * - form[data-validate]: data-msg-invalid, data-msg-sending, data-msg-error and
+     *   data-msg-success; data-status and data-success hold the ids of the form's
+     *   role="status" line and its success banner.
+     * - form[data-endpoint]: POST the form as FormData to this same-origin URL, e.g.
+     *   admin-ajax.php or a REST route. Hidden fields such as action and _wpnonce travel
+     *   with it. Without data-endpoint nothing is sent (demo mode).
+     * - Controls: required, data-validate="name|email|phone|future-date",
+     *   data-error-required and data-error-format. The error element's id is "<id>-error".
+     * - [data-honeypot]: spam trap. When it is filled, nothing is sent.
+     *
+     * The JSON reply uses the shape wp_send_json_success() / wp_send_json_error() produce:
+     * { success: boolean, data?: { message?: string, errors?: { [fieldName]: string } } }
+     * Each outcome is also dispatched on the form as "aureliadental:form-success" or
+     * "aureliadental:form-error" (detail = data) for analytics or custom handlers.
      * @namespace App.forms
      */
     forms: {
       /** @type {AbortController|null} */
       controller: null,
 
+      /** Give up on a request that has not answered after this many milliseconds. */
+      TIMEOUT: 15000,
+
+      /**
+       * Format checks, keyed by data-validate. Each pattern is a single character class,
+       * or labels split by a literal the class cannot match, so matching time is linear
+       * (no ReDoS). Lengths are capped before any pattern runs.
+       */
+      rules: {
+        // Letters and combining marks in any script (Thai vowel and tone marks are \p{M}),
+        // plus spaces, ' and the ’ that iOS types, full stops and hyphens.
+        name: (value) => value.length <= 100 && /^\p{L}[\p{L}\p{M}\s'’.-]*$/u.test(value),
+
+        // The HTML Standard's "valid e-mail address" pattern, with a dot required in the
+        // domain. 254 / 64 are the SMTP limits for the address and the local part.
+        email: (value) =>
+          value.length <= 254 &&
+          value.indexOf("@") <= 64 &&
+          /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
+            value
+          ),
+
+        // Optional leading +, then digits and common separators; 9 to 15 digits (E.164).
+        phone: (value) => {
+          if (value.length > 20 || !/^\+?[0-9 ().-]+$/.test(value)) {
+            return false;
+          }
+
+          const digits = value.replace(/[^0-9]/g, "").length;
+          return digits >= 9 && digits <= 15;
+        },
+
+        // YYYY-MM-DD compares correctly as text. The shape check covers browsers that
+        // show a plain text box instead of a date picker.
+        "future-date": (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= localToday(),
+      },
+
       /** @returns {void} */
       init: () => {
         const signal = renewSignal(App.forms);
-        const form = select(".contact-form");
-        const status = byId("contact-status");
 
-        if (!form || !status) {
-          return;
-        }
+        selectAll("form[data-validate]").forEach((form) => App.forms.setup(form, signal));
+      },
 
-        const fields = selectAll("[data-error-required], [data-error-format]", form);
-        const trap = select('[name="website"]', form);
-        const dateField = select('input[type="date"]', form);
+      /**
+       * Wire one form. Everything it needs is looked up here and kept in this closure.
+       * @param {HTMLFormElement} form
+       * @param {AbortSignal} signal
+       * @returns {void}
+       */
+      setup: (form, signal) => {
+        const status = byId(form.getAttribute("data-status"));
+        const banner = byId(form.getAttribute("data-success"));
+        const trap = select("[data-honeypot]", form);
+        const message = (name) => form.getAttribute(`data-msg-${name}`) || "";
 
-        // Past dates cannot be booked. Use the local calendar day, not UTC.
-        if (dateField) {
-          const today = new Date();
-          today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
-          dateField.min = today.toISOString().slice(0, 10);
-        }
+        /** Set while a request is in flight, so a second submit cannot send twice. */
+        let busy = false;
 
         /**
-         * Publish a form-level status message for assistive tech (role="status").
-         * @param {string|null} message
-         * @param {string} state
-         * @returns {void}
+         * @param {EventTarget|null} el
+         * @returns {boolean} True for this form's own fields, minus the honeypot.
          */
-        const setStatus = (message, state) => {
-          status.textContent = message;
-          status.setAttribute("data-state", state);
+        const isField = (el) =>
+          el instanceof HTMLElement &&
+          el.matches("input, select, textarea") &&
+          el.willValidate &&
+          el.form === form &&
+          !el.hasAttribute("data-honeypot");
+
+        // Read on each submit, so fields a builder adds later are included.
+        const fields = () => [...form.elements].filter(isField);
+
+        const setMinDates = () => {
+          selectAll('[data-validate="future-date"]', form).forEach((field) => {
+            field.min = localToday();
+          });
         };
 
         /**
-         * Validate one control and sync its linked *-error element and aria-invalid.
+         * @param {string} text
+         * @param {string} state "error" | "pending" | "success"
+         * @returns {void}
+         */
+        const setStatus = (text, state) => {
+          if (status) {
+            status.textContent = text;
+            status.setAttribute("data-state", state);
+          }
+        };
+
+        /**
          * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} field
+         * @returns {string} The message to show, or "" when the field is valid.
+         */
+        const getError = (field) => {
+          const required = field.getAttribute("data-error-required") || "";
+          const format = field.getAttribute("data-error-format") || required;
+
+          if (field.type === "checkbox") {
+            return field.required && !field.checked ? required : "";
+          }
+
+          const value = field.value.trim();
+
+          if (!value) {
+            return field.required ? required : "";
+          }
+
+          const key = field.getAttribute("data-validate");
+          const rule = Object.prototype.hasOwnProperty.call(App.forms.rules, key)
+            ? App.forms.rules[key]
+            : null;
+
+          return rule && !rule(value) ? format : "";
+        };
+
+        /**
+         * Write (or clear) a field's error. aria-invalid is the single state hook: CSS
+         * styles it and screen readers announce it; the message is read through the
+         * aria-describedby link, so the error element is not a live region.
+         * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} field
+         * @param {string} text
          * @returns {boolean} True when the field is valid.
          */
-        const validateField = (field) => {
-          const error = byId(field.id ? field.id + "-error" : null);
-          let message = "";
-
-          if (!field.validity.valid) {
-            message = field.validity.valueMissing
-              ? field.getAttribute("data-error-required")
-              : field.getAttribute("data-error-format") || field.getAttribute("data-error-required");
-          }
+        const setFieldError = (field, text) => {
+          const error = field.id ? byId(`${field.id}-error`) : null;
 
           if (error) {
-            error.textContent = message;
+            error.textContent = text;
           }
 
-          if (message) {
+          if (text) {
             field.setAttribute("aria-invalid", "true");
-          } else {
-            field.removeAttribute("aria-invalid");
+            field.classList.remove("is-valid");
+            return false;
           }
 
-          return !message;
+          field.removeAttribute("aria-invalid");
+          // Only filled text-like fields turn green; empty optional ones stay neutral.
+          field.classList.toggle("is-valid", field.type !== "checkbox" && field.value.trim() !== "");
+          return true;
+        };
+
+        const validate = (field) => setFieldError(field, getError(field));
+
+        const clearAll = () => {
+          fields().forEach((field) => setFieldError(field, ""));
+          setStatus("", "");
         };
 
         /**
-         * Re-check only fields already flagged, so errors clear as they are fixed but
-         * never appear mid-typing on a pristine field.
-         * @param {Event} event
+         * Focus the banner so it is announced and in view. It is not also a live region,
+         * which would make screen readers read it twice.
          * @returns {void}
          */
-        const recheck = (event) => {
-          const field = event.target;
-
-          if (field instanceof Element && field.getAttribute("aria-invalid") === "true") {
-            validateField(field);
+        const showSuccess = () => {
+          if (banner) {
+            setStatus("", "success");
+            banner.hidden = false;
+            banner.focus({ preventScroll: true });
+            banner.scrollIntoView({
+              behavior: App.config.reduceMotion.matches ? "auto" : "smooth",
+              block: "nearest",
+            });
+          } else {
+            setStatus(message("success"), "success");
           }
         };
 
-        form.addEventListener("input", recheck, { signal });
-        form.addEventListener("change", recheck, { signal });
+        const emit = (outcome, detail) => {
+          form.dispatchEvent(new CustomEvent(`aureliadental:form-${outcome}`, { bubbles: true, detail }));
+        };
+
+        /**
+         * POST the form to data-endpoint, or resolve at once in demo mode.
+         * The request is aborted on timeout and when this module is destroyed.
+         * @returns {Promise<{success: boolean, data: Object}>}
+         */
+        const send = () => {
+          const endpoint = form.getAttribute("data-endpoint");
+
+          if (!endpoint) {
+            return Promise.resolve({ success: true, data: {} });
+          }
+
+          // send() runs a microtask after submit; destroy() may have run in between.
+          if (signal.aborted) {
+            return Promise.reject(new DOMException("Form module destroyed.", "AbortError"));
+          }
+
+          // The form carries health details: never post them to another origin, even if
+          // a page builder or a compromised setting changes the attribute.
+          const url = new URL(endpoint, window.location.href);
+
+          if (url.origin !== window.location.origin) {
+            return Promise.reject(new Error(`[Aurelia Dental] Refused cross-origin endpoint ${url.origin}.`));
+          }
+
+          const request = new AbortController();
+          const stop = () => request.abort();
+          const timer = window.setTimeout(stop, App.forms.TIMEOUT);
+
+          // Removed again when the request settles (its own signal aborts in finally).
+          signal.addEventListener("abort", stop, { once: true, signal: request.signal });
+
+          return fetch(url, {
+            method: "POST",
+            body: new FormData(form),
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+            signal: request.signal,
+          })
+            .then((response) =>
+              response
+                .json()
+                .catch(() => null) // admin-ajax answers "0" or "-1" as plain text
+                .then((reply) => {
+                  const body = reply && typeof reply === "object" ? reply : {};
+                  const data = body.data && typeof body.data === "object" ? body.data : {};
+
+                  return { success: response.ok && body.success === true, data };
+                })
+            )
+            .finally(() => {
+              window.clearTimeout(timer);
+              stop();
+            });
+        };
+
+        /**
+         * Show the server's verdict. Field errors only apply to fields in this form, and
+         * every string is written with textContent.
+         * @param {{message?: string, errors?: Object<string, string>}} data
+         * @returns {void}
+         */
+        const showServerErrors = (data) => {
+          const errors = data.errors && typeof data.errors === "object" ? data.errors : {};
+          const flagged = fields().filter((field) => {
+            const text = Object.prototype.hasOwnProperty.call(errors, field.name) ? errors[field.name] : null;
+            return typeof text === "string" && text !== "" && !setFieldError(field, text);
+          });
+          const summary = typeof data.message === "string" && data.message ? data.message : "";
+
+          setStatus(summary || message(flagged.length ? "invalid" : "error"), "error");
+
+          if (flagged.length) {
+            flagged[0].focus();
+          }
+        };
+
+        setMinDates();
+
+        // Validate once a value is committed (change fires on blur after an edit, and at
+        // once for selects, dates and checkboxes), so tabbing through an empty form never
+        // raises errors. A field already marked invalid re-checks on every keystroke so
+        // the message clears as soon as it is fixed.
+        form.addEventListener(
+          "change",
+          (event) => {
+            if (isField(event.target)) {
+              validate(event.target);
+            }
+          },
+          { signal }
+        );
+
+        form.addEventListener(
+          "input",
+          (event) => {
+            if (isField(event.target) && event.target.getAttribute("aria-invalid") === "true") {
+              validate(event.target);
+            }
+          },
+          { signal }
+        );
 
         form.addEventListener(
           "submit",
           (event) => {
+            event.preventDefault();
+
+            if (busy) {
+              return;
+            }
+
+            if (banner) {
+              banner.hidden = true;
+            }
+
             // Bots fill every field; people never see this one. Fake success, send nothing.
             if (trap && trap.value) {
-              event.preventDefault();
-              setStatus(form.getAttribute("data-msg-success"), "success");
               form.reset();
+              clearAll();
+              showSuccess();
               return;
             }
 
-            // Validate every field so all errors show, but remember only the first.
-            let firstInvalid = null;
+            // filter() runs validate() on every field, so all errors show at once.
+            const invalid = fields().filter((field) => !validate(field));
 
-            fields.forEach((field) => {
-              if (!validateField(field) && !firstInvalid) {
-                firstInvalid = field;
-              }
-            });
-
-            if (firstInvalid) {
-              event.preventDefault();
-              setStatus(form.getAttribute("data-msg-invalid"), "error");
-              firstInvalid.focus();
+            if (invalid.length) {
+              setStatus(message("invalid"), "error");
+              invalid[0].focus();
               return;
             }
 
-            // Demo page only: once action points to a real handler, submit normally.
-            if (form.getAttribute("action") === "#") {
-              event.preventDefault();
-              setStatus(form.getAttribute("data-msg-success"), "success");
-              form.reset();
-            }
+            busy = true;
+            form.setAttribute("aria-busy", "true");
+            setStatus(message("sending"), "pending");
+
+            Promise.resolve()
+              .then(send)
+              .then(({ success, data }) => {
+                if (success) {
+                  form.reset();
+                  clearAll();
+                  setMinDates();
+                  showSuccess();
+                  emit("success", data);
+                } else {
+                  showServerErrors(data);
+                  emit("error", data);
+                }
+              })
+              .catch((error) => {
+                // Destroyed mid-request: the page is being rebuilt, so stay quiet.
+                if (signal.aborted) {
+                  return;
+                }
+
+                console.error("[Aurelia Dental] Form request failed.", error);
+                setStatus(message("error"), "error");
+                emit("error", {});
+              })
+              .finally(() => {
+                busy = false;
+                form.removeAttribute("aria-busy");
+              });
           },
           { signal }
         );
